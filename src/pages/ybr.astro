@@ -1,0 +1,123 @@
+---
+import Navbar from '../components/Navbar.astro';
+import TrackPlayer from '../components/TrackPlayer.astro';
+import { supabase } from '../lib/supabase';
+import '../styles/global.css';
+
+const { data: tracks, error: trackError } = await supabase
+  .from('tracks')
+  .select(`
+    id,
+    title,
+    cover,
+    file,
+    track_authors (
+      talents (
+        display_name
+      )
+    )
+  `)
+const { data: talents, error: talentError } = await supabase
+  .from('talents')
+  .select('id, display_name, profile_picture')
+  .order('display_name', { ascending: true });
+
+if (trackError || talentError) {
+  console.error('Error fetching data:', trackError || talentError);
+}
+---
+
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width" />
+        <title>Homiexide - Young Boys Records</title>
+        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    </head>
+    <body class="relative min-h-screen bg-[#09090b] text-white selection:bg-purple-900/50">
+        
+        <div class="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-white/5 rounded-full blur-[150px] pointer-events-none"></div>
+
+        <Navbar />
+
+        <main class="relative z-10 max-w-[1200px] mx-auto px-8 pt-20 pb-32">
+            <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-16">
+                
+                <div class="flex flex-col">
+                    <h1 class="text-4xl md:text-5xl font-black mb-10 tracking-tight">Young Boys Records</h1>
+                    
+                    <div class="flex flex-col md:flex-row gap-8 mb-16">
+                        <img 
+                            src="/ybr-logo.png" 
+                            alt="YBR Logo" 
+                            class="w-48 h-48 shrink-0 rounded-xl object-contain" 
+                        />
+                        
+                        <div class="text-[14px] text-gray-300 leading-relaxed font-medium space-y-5">
+                            <p>
+                                A independent music label existing within GTA San Andreas Multiplayer Roleplay as an In Character (IC) entity, serving as a creative platform for characters to express themselves through music such as hip-hop, R&B, and other evolving genres within the roleplay scene.
+                            </p>
+                            <p>
+                                The channel features music releases, roleplay-driven storytelling, collaborations, and behind-the-scenes moments that reflect the journey, struggles, and ambitions of virtual artists, making it not just entertainment but a dynamic representation of a living, character-driven music industry.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h2 class="text-2xl font-bold mb-8 tracking-wide text-white">Most trending tracks</h2>
+                        <div class="flex flex-col gap-2">
+                            {tracks && tracks.length > 0 ? (
+                                tracks.map(track => {
+                                    // Gabungkan nama author jika lebih dari satu
+                                    const authors = track.track_authors
+                                        .map((a: any) => a.talents.display_name)
+                                        .join(', ');
+
+                                    return (
+                                        <TrackPlayer 
+                                            title={track.title}
+                                            author={authors}
+                                            cover={track.cover}
+                                            audioUrl={track.file}
+                                        />
+                                    );
+                                })
+                            ) : (
+                                <p class="text-gray-500 italic">No tracks available yet.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="border border-white/5 bg-[#111111]/50 backdrop-blur-xl rounded-3xl p-8 sticky top-32">
+                        <h2 class="text-xl font-bold mb-6 tracking-wide text-white">Talents</h2>
+                        
+                        <ul class="flex flex-col gap-4">
+                            {talents && talents.length > 0 ? (
+                                talents.map(talent => (
+                                    <li>
+                                        <a href={`/talents/${talent.id}`} class="flex items-center gap-4 group cursor-pointer p-2 -ml-2 rounded-xl hover:bg-white/5 transition-all">
+                                            <img 
+                                                src={talent.profile_picture || 'https://placehold.co/100x100/333/666?text=?'} 
+                                                alt={talent.display_name} 
+                                                class="w-10 h-10 rounded-full object-cover border border-white/10 group-hover:border-white/30 transition-all" 
+                                            />
+                                            <span class="text-[15px] font-semibold text-gray-400 group-hover:text-white transition-colors">
+                                                {talent.display_name}
+                                            </span>
+                                        </a>
+                                    </li>
+                                ))
+                            ) : (
+                                <p class="text-gray-500 text-sm italic">Searching for talents...</p>
+                            )}
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </body>
+</html>

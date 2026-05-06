@@ -1,0 +1,44 @@
+<header class="relative z-50 px-8 pt-8">
+    <div class="max-w-[1400px] mx-auto flex items-center justify-between">
+        <a href="/" class="text-3xl font-black tracking-tighter text-white flex items-center gap-1">
+            HOMIEXIDE
+        </a>
+
+        <nav class="hidden md:flex items-center gap-2 px-8 py-3 rounded-[2rem] border border-white/10 bg-white/5 backdrop-blur-md">
+            <a href="/" class="px-4 py-1 text-[15px] font-bold text-white hover:text-gray-300 transition-colors">Home</a>
+            
+            <div class="relative">
+                <button id="menu-btn" class="px-4 py-1 text-[15px] font-bold text-white hover:text-gray-300 transition-colors flex items-center gap-1">
+                    Menu
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                
+                <ul id="dropdown-menu" class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-4 p-2 shadow-2xl bg-[#121214] border border-[#2a2a2a] rounded-2xl w-56 backdrop-blur-3xl z-10">
+                    <li><a href="/ybr" class="block px-4 py-2.5 text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white rounded-xl transition-all">Young Boys Records</a></li>
+                    <li><a href="/skins" class="block px-4 py-2.5 text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white rounded-xl transition-all">Skins Catalogue</a></li>
+                    <li><a href="/modpacks" class="block px-4 py-2.5 text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white rounded-xl transition-all">GTA SA Modpacks</a></li>
+                </ul>
+            </div>
+
+            <a href="/about" class="px-4 py-1 text-[15px] font-bold text-white hover:text-gray-300 transition-colors">About</a>
+        </nav>
+
+        <div class="w-[120px] hidden md:block"></div>
+    </div>
+</header>
+
+<script>
+    const menuBtn = document.getElementById('menu-btn');
+    const dropdownMenu = document.getElementById('dropdown-menu');
+
+    menuBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdownMenu?.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!menuBtn?.contains(e.target as Node) && !dropdownMenu?.contains(e.target as Node)) {
+            dropdownMenu?.classList.add('hidden');
+        }
+    });
+</script>

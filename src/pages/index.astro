@@ -1,17 +1,67 @@
 ---
-
+import FeatureCard from '../components/FeatureCard.astro';
+import Navbar from '../components/Navbar.astro';
+import '../styles/global.css';
 ---
 
+<!doctype html>
 <html lang="en">
 	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
+		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
+		<title>Homiexide</title>
+		
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+		<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
 	</head>
-	<body>
-		<h1>Astro</h1>
+	<body class="relative min-h-screen bg-[#09090b] text-white selection:bg-purple-900/50">
+		
+		<div class="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-white/5 rounded-full blur-[150px] pointer-events-none"></div>
+		
+		<Navbar />
+
+		<section class="max-w-[1000px] mx-auto px-6 pt-28 pb-20 text-center relative z-10">
+			<h1 class="text-[28px] md:text-[38px] font-bold tracking-tight mb-3 leading-tight text-white">
+				More than just community. Homiexide is<br class="hidden md:block" /> where we growing up together.
+			</h1>
+			<p class="text-[14px] text-gray-400 italic font-medium tracking-wide">
+				If you wanna be the one of us, don't hesitate to reach out. We are always open for everyone, join us!
+		</section>
+
+		<section class="max-w-[1200px] mx-auto px-6 pb-32 relative z-10">
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+				<FeatureCard 
+					iconName="Community" 
+					title="Homiexide" 
+					description="The epicenter of the GTA SA Multiplayer scene. We provide a space to share Roleplay experiences. If you're looking for a family to grow up together with in the virtual worlds, this is your home." 
+					buttonText="Get in touch" 
+				/>
+				<FeatureCard 
+					iconName="YBR" 
+					title="Young Boys Records" 
+					description="A independent music label existing within GTA San Andreas Multiplayer Roleplay as an In Character (IC) entity. Making it not just entertainment but a dynamic representation of a living, character-driven music industry." 
+					buttonText="Tracks" 
+				/>
+				<FeatureCard 
+					iconName="Skins" 
+					title="Skins Catalogue" 
+					description="The epicenter of the GTA SA Multiplayer scene. We provide a space to share Roleplay experiences. If you're looking for a family to grow up together with in the virtual worlds, this is your home." 
+					buttonText="Browse" 
+				/>
+				<FeatureCard 
+					iconName="Modpacks" 
+					title="GTA SA Modpacks" 
+					description="The epicenter of the GTA SA Multiplayer scene. We provide a space to share Roleplay experiences. If you're looking for a family to grow up together with in the virtual worlds, this is your home." 
+					buttonText="Browse" 
+				/>
+			</div>
+		</section>
 	</body>
 </html>
+
+<style is:global>
+	body {
+		font-family: 'Montserrat', sans-serif;
+	}
+</style>

@@ -4,12 +4,20 @@ interface Props {
   author: string;
   cover: string;
   audioUrl: string;
+  lyrics?: string;
 }
 
-const { title, author, cover, audioUrl } = Astro.props;
+const { title, author, cover, audioUrl, lyrics } = Astro.props;
 ---
 
-<div class="track-player flex gap-4 mb-6" data-audio={audioUrl}>
+<div 
+  class="track-player flex gap-4 mb-6" 
+  data-audio={audioUrl} 
+  data-title={title} 
+  data-author={author} 
+  data-cover={cover}
+  data-lyrics={lyrics ?? ''}
+>
   <img src={cover} alt={title} class="w-24 h-24 rounded-xl object-cover border border-[#2a2a2a] shadow-lg" />
 
   <div class="flex-1 flex flex-col justify-center">
@@ -30,60 +38,166 @@ const { title, author, cover, audioUrl } = Astro.props;
     </div>
 
     <div class="waveform-container w-full h-[40px] cursor-pointer bg-white/5 rounded-md"></div>
-    
-    <div class="flex justify-between items-center mt-1.5 px-1">
-      <div class="flex gap-2">
-        <button class="w-[22px] h-[22px] bg-[#d9d9d9]/10 hover:bg-[#d9d9d9]/30 rounded-[4px] flex items-center justify-center transition-colors cursor-pointer" title="Share">
-          <svg class="w-3.5 h-3.5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
-        </button>
-        <button class="w-[22px] h-[22px] bg-[#d9d9d9]/10 hover:bg-[#d9d9d9]/30 rounded-[4px] flex items-center justify-center transition-colors cursor-pointer" title="Copy Link">
-          <svg class="w-3.5 h-3.5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
-        </button>
-      </div>
-      <span class="text-[10px] text-gray-500 font-medium">▶ 193</span>
-    </div>
   </div>
 </div>
 
 <script>
   import WaveSurfer from 'wavesurfer.js';
 
-  const players = document.querySelectorAll('.track-player');
-
-  players.forEach(player => {
-    const audioUrl = player.getAttribute('data-audio');
-    const waveContainer = player.querySelector('.waveform-container');
-    const playBtn = player.querySelector('.play-btn');
-    const playIcon = player.querySelector('.play-icon');
-    const pauseIcon = player.querySelector('.pause-icon');
-
-    if (waveContainer && audioUrl) {
-      const wavesurfer = WaveSurfer.create({
-        container: waveContainer as HTMLElement,
-        waveColor: '#4b5563', 
-        progressColor: '#ffffff',
-        barWidth: 2, 
-        barGap: 2, 
-        barRadius: 2, 
-        height: 40, 
-        cursorWidth: 0, 
-      });
-
-      wavesurfer.load(audioUrl);
-
-      playBtn?.addEventListener('click', () => {
-        wavesurfer.playPause();
-      });
-
-      wavesurfer.on('play', () => {
-        playIcon?.classList.add('hidden');
-        pauseIcon?.classList.remove('hidden');
-      });
-
-      wavesurfer.on('pause', () => {
-        playIcon?.classList.remove('hidden');
-        pauseIcon?.classList.add('hidden');
-      });
+  declare global {
+    interface Window {
+      ybrPlaylist: any[];
+      currentTrackIndex: number;
     }
+  }
+
+  document.addEventListener('astro:page-load', () => {
+    if (!window.ybrPlaylist) {
+      window.ybrPlaylist = []; 
+    }
+
+    const players = document.querySelectorAll('.track-player');
+    const audioEngine = document.getElementById('global-audio-engine') as HTMLAudioElement;
+
+    // 1. Broadcast waktu dari mesin global
+    if (audioEngine && !audioEngine.getAttribute('data-sync-attached')) {
+      audioEngine.addEventListener('timeupdate', () => {
+        window.dispatchEvent(new Event('ybr-engine-timeupdate'));
+      });
+      audioEngine.setAttribute('data-sync-attached', 'true');
+    }
+
+    players.forEach((player) => {
+      const audioUrl = player.getAttribute('data-audio');
+      const title = player.getAttribute('data-title');
+      const author = player.getAttribute('data-author');
+      const cover = player.getAttribute('data-cover');
+      const lyrics = player.getAttribute('data-lyrics');
+      
+      const waveContainer = player.querySelector('.waveform-container') as HTMLElement;
+      const playBtn = player.querySelector('.play-btn') as HTMLButtonElement;
+      const playIcon = player.querySelector('.play-icon') as SVGSVGElement;
+      const pauseIcon = player.querySelector('.pause-icon') as SVGSVGElement;
+
+      if (waveContainer && audioUrl) {
+        
+        setTimeout(() => {
+          
+          waveContainer.innerHTML = ''; 
+
+          const wavesurfer = WaveSurfer.create({
+            container: waveContainer,
+            waveColor: '#4b5563', 
+            progressColor: '#ffffff',
+            barWidth: 2, 
+            barGap: 2, 
+            barRadius: 2, 
+            height: 40, 
+            cursorWidth: 0, 
+          });
+
+          wavesurfer.setVolume(0);
+
+          wavesurfer.load(audioUrl);
+
+          let trackIndex = window.ybrPlaylist.findIndex(t => t.audioUrl === audioUrl);
+
+          if (trackIndex === -1) {
+            trackIndex = window.ybrPlaylist.length;
+            window.ybrPlaylist.push({
+              index: trackIndex,
+              title,
+              author,
+              cover,
+              audioUrl,
+              lyrics: lyrics ?? '',
+              wavesurfer,
+              hasBottomPlayerListeners: false
+            });
+          } else {
+            // Update referensi wavesurfer dengan instance yang baru digambar
+            window.ybrPlaylist[trackIndex].wavesurfer = wavesurfer;
+            window.ybrPlaylist[trackIndex].lyrics = lyrics ?? window.ybrPlaylist[trackIndex].lyrics ?? '';
+          }
+
+          const updateIconUI = () => {
+            const isEnginePlaying = audioEngine && !audioEngine.paused;
+            if (window.currentTrackIndex === trackIndex && (wavesurfer.isPlaying() || isEnginePlaying)) {
+              playIcon?.classList.add('hidden');
+              pauseIcon?.classList.remove('hidden');
+            } else {
+              playIcon?.classList.remove('hidden');
+              pauseIcon?.classList.add('hidden');
+            }
+          };
+
+          // Saat gelombang selesai dirender, cek sinkronisasi
+          wavesurfer.on('ready', () => {
+            wavesurfer.setVolume(0); 
+            if (window.currentTrackIndex === trackIndex && audioEngine) {
+              const duration = audioEngine.duration || 1;
+              wavesurfer.seekTo(audioEngine.currentTime / duration);
+              if (!audioEngine.paused) {
+                wavesurfer.play().catch(() => {});
+              }
+              updateIconUI();
+            }
+          });
+
+          // Sinkronisasi paksa setiap detak mesin audio
+          const handleTimeUpdate = () => {
+            if (window.currentTrackIndex === trackIndex && audioEngine) {
+              const audioTime = audioEngine.currentTime;
+              const waveTime = wavesurfer.getCurrentTime();
+              const duration = audioEngine.duration || 1;
+
+              if (Math.abs(audioTime - waveTime) > 0.1) {
+                try { wavesurfer.seekTo(audioTime / duration); } catch(e) {}
+              }
+
+              if (!audioEngine.paused && !wavesurfer.isPlaying()) {
+                wavesurfer.play().catch(() => {});
+              }
+              
+              updateIconUI();
+            }
+          };
+
+          window.addEventListener('ybr-engine-timeupdate', handleTimeUpdate);
+
+          // Bersihkan memory saat pindah page
+          document.addEventListener('astro:before-swap', () => {
+            window.removeEventListener('ybr-engine-timeupdate', handleTimeUpdate);
+            // Hancurkan instance wavesurfer lama sebelum hilang
+            try { wavesurfer.destroy(); } catch(e) {}
+          }, { once: true });
+
+          wavesurfer.on('play', updateIconUI);
+          wavesurfer.on('pause', updateIconUI);
+          window.addEventListener('ybr-global-ui-sync', updateIconUI);
+
+          playBtn?.addEventListener('click', () => {
+            if (window.currentTrackIndex === trackIndex && audioEngine) {
+              if (audioEngine.paused) {
+                audioEngine.play();
+                wavesurfer.play().catch(()=>{});
+              } else {
+                audioEngine.pause();
+                wavesurfer.pause();
+              }
+            } else {
+              window.dispatchEvent(new CustomEvent('ybr-play-track', { 
+              detail: { 
+                index: trackIndex, 
+                lyrics: lyrics ?? '' 
+              } 
+            }));
+            }
+          });
+
+        }, 150); // Akhir dari setTimeout
+        
+      }
+    });
   });
 </script>

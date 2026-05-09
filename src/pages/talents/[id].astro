@@ -1,9 +1,9 @@
 ---
-import Navbar from '../../components/Navbar.astro';
+import Layout from '../../layouts/Layout.astro';
 import TrackPlayer from '../../components/TrackPlayer.astro';
 import { supabase } from '../../lib/supabase';
-import '../../styles/global.css';
 
+// Static Paths
 export async function getStaticPaths() {
     const { data: talents } = await supabase.from('talents').select('id');
     return talents?.map(talent => ({
@@ -13,12 +13,14 @@ export async function getStaticPaths() {
 
 const { id } = Astro.params;
 
+// Fetch Talent
 const { data: talent } = await supabase
     .from('talents')
     .select('*')
     .eq('id', id)
     .single();
 
+// Fetch Tracks
 const { data: talentTracks } = await supabase
     .from('track_authors')
     .select(`
@@ -38,111 +40,96 @@ const { data: talentTracks } = await supabase
 
 const tracks = talentTracks?.map(t => t.tracks).filter(Boolean) || [];
 
+// Fetch All Talents
 const { data: allTalents } = await supabase
     .from('talents')
     .select('id, display_name, profile_picture')
     .order('display_name', { ascending: true });
 ---
 
-<!doctype html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width" />
-        <title>{talent?.display_name || 'Talent'} - Homiexide</title>
-        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
-    </head>
-    <body class="relative min-h-screen bg-[#09090b] text-white selection:bg-purple-900/50">
+<Layout title={`${talent?.display_name || 'Talent'} - Homiexide`}>
+    
+    <main class="relative z-10 max-w-[1200px] mx-auto px-8 pt-20 pb-32">
         
-        <div class="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-white/5 rounded-full blur-[150px] pointer-events-none"></div>
+        <div class="relative w-full h-[240px] rounded-3xl overflow-hidden mb-12 flex items-end p-6 border border-white/10 shadow-2xl">
+            <div class="absolute inset-0 z-0">
+                <img 
+                    src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2000&auto=format&fit=crop" 
+                    alt="Banner" 
+                    class="w-full h-full object-cover opacity-30 grayscale" 
+                />
+                <div class="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/60 to-transparent"></div>
+            </div>
 
-        <Navbar />
+            <div class="relative z-10 flex items-center gap-6">
+                <img 
+                    src={talent?.profile_picture || 'https://placehold.co/150'} 
+                    alt={talent?.display_name || 'Unknown'} 
+                    class="w-28 h-28 md:w-32 md:h-32 rounded-full object-cover border-4 border-[#09090b] shadow-xl bg-gray-900" 
+                />
+                <div class="mb-2">
+                    <h1 class="text-3xl md:text-5xl font-bold text-white tracking-tight">{talent?.display_name || 'Unknown Talent'}</h1>
+                    <p class="text-lg md:text-xl text-gray-300 font-medium mt-1">Indonesia</p>
+                </div>
+            </div>
+        </div>
 
-        <main class="relative z-10 max-w-[1200px] mx-auto px-8 pt-20 pb-32">
+        <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-16">
             
-            <div class="relative w-full h-[240px] rounded-3xl overflow-hidden mb-12 flex items-end p-6 border border-white/10 shadow-2xl">
-                <div class="absolute inset-0 z-0">
-                    <img 
-                        src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2000&auto=format&fit=crop" 
-                        alt="Banner" 
-                        class="w-full h-full object-cover opacity-30 grayscale" 
-                    />
-                    <div class="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/60 to-transparent"></div>
-                </div>
-
-                <div class="relative z-10 flex items-center gap-6">
-                    <img 
-                        src={talent?.profile_picture || 'https://placehold.co/150'} 
-                        alt={talent?.display_name || 'Unknown'} 
-                        class="w-28 h-28 md:w-32 md:h-32 rounded-full object-cover border-4 border-[#09090b] shadow-xl bg-gray-900" 
-                    />
-                    <div class="mb-2">
-                        <h1 class="text-3xl md:text-5xl font-bold text-white tracking-tight">{talent?.display_name || 'Unknown Talent'}</h1>
-                        <p class="text-lg md:text-xl text-gray-300 font-medium mt-1">Indonesia</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-16">
-                
-                <div class="flex flex-col">
-                    <div>
-                        <h2 class="text-2xl font-bold mb-8 tracking-wide text-white">Recent</h2>
-                        <div class="flex flex-col gap-2">
-                            {tracks && tracks.length > 0 ? (
-                                tracks.map((track: any) => {
-                                    // Ambil data track_authors dengan aman
-                                    const authorData = track?.track_authors || [];
-                                    
-                                    // Pastikan itu bentuknya Array sebelum di-map
-                                    const authors = Array.isArray(authorData) 
-                                        ? authorData.map((a: any) => a?.talents?.display_name).filter(Boolean).join(', ') 
-                                        : 'Unknown Artist';
-
-                                    return (
-                                        <TrackPlayer 
-                                            title={track?.title || 'Untitled Track'}
-                                            author={authors || 'Unknown Artist'}
-                                            cover={track?.cover || 'https://placehold.co/150'}
-                                            audioUrl={track?.file || ''}
-                                        />
-                                    );
-                                })
-                            ) : (
-                                <p class="text-gray-500 italic">No tracks released yet.</p>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
+            <div class="flex flex-col">
                 <div>
-                    <div class="border border-white/5 bg-[#111111]/50 backdrop-blur-xl rounded-3xl p-8 sticky top-32 shadow-xl">
-                        <h2 class="text-xl font-bold mb-6 tracking-wide text-white">Talents</h2>
-                        
-                        <ul class="flex flex-col gap-4">
-                            {allTalents && allTalents.length > 0 ? (
-                                allTalents.map(t => (
-                                    <li>
-                                        <a href={`/talents/${t.id}`} class={`flex items-center gap-4 group cursor-pointer p-2 -ml-2 rounded-xl transition-all ${t.id === id ? 'bg-white/10' : 'hover:bg-white/5'}`}>
-                                            <img 
-                                                src={t.profile_picture || 'https://placehold.co/100x100/333/666?text=?'} 
-                                                alt={t.display_name} 
-                                                class={`w-10 h-10 rounded-full object-cover border transition-all ${t.id === id ? 'border-white/50' : 'border-white/10 group-hover:border-white/30'}`} 
-                                            />
-                                            <span class={`text-[15px] font-semibold transition-colors ${t.id === id ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
-                                                {t.display_name}
-                                            </span>
-                                        </a>
-                                    </li>
-                                ))
-                            ) : (
-                                <p class="text-gray-500 text-sm italic">Searching for talents...</p>
-                            )}
-                        </ul>
+                    <h2 class="text-2xl font-bold mb-8 tracking-wide text-white">Recent</h2>
+                    <div class="flex flex-col gap-2">
+                        {tracks && tracks.length > 0 ? (
+                            tracks.map((track: any) => {
+                                const authorData = track?.track_authors || [];
+                                const authors = Array.isArray(authorData) 
+                                    ? authorData.map((a: any) => a?.talents?.display_name).filter(Boolean).join(', ') 
+                                    : 'Unknown Artist';
+
+                                return (
+                                    <TrackPlayer 
+                                        title={track?.title || 'Untitled Track'}
+                                        author={authors || 'Unknown Artist'}
+                                        cover={track?.cover || 'https://placehold.co/150'}
+                                        audioUrl={track?.file || ''}
+                                    />
+                                );
+                            })
+                        ) : (
+                            <p class="text-gray-500 italic">No tracks released yet.</p>
+                        )}
                     </div>
                 </div>
-
             </div>
-        </main>
-    </body>
-</html>
+
+            <div>
+                <div class="border border-white/5 bg-[#111111]/50 backdrop-blur-xl rounded-3xl p-8 sticky top-32 shadow-xl">
+                    <h2 class="text-xl font-bold mb-6 tracking-wide text-white">Talents</h2>
+                    
+                    <ul class="flex flex-col gap-4">
+                        {allTalents && allTalents.length > 0 ? (
+                            allTalents.map(t => (
+                                <li>
+                                    <a href={`/talents/${t.id}`} class={`flex items-center gap-4 group cursor-pointer p-2 -ml-2 rounded-xl transition-all ${t.id === id ? 'bg-white/10' : 'hover:bg-white/5'}`}>
+                                        <img 
+                                            src={t.profile_picture || 'https://placehold.co/100x100/333/666?text=?'} 
+                                            alt={t.display_name} 
+                                            class={`w-10 h-10 rounded-full object-cover border transition-all ${t.id === id ? 'border-white/50' : 'border-white/10 group-hover:border-white/30'}`} 
+                                        />
+                                        <span class={`text-[15px] font-semibold transition-colors ${t.id === id ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+                                            {t.display_name}
+                                        </span>
+                                    </a>
+                                </li>
+                            ))
+                        ) : (
+                            <p class="text-gray-500 text-sm italic">Searching for talents...</p>
+                        )}
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </main>
+</Layout>

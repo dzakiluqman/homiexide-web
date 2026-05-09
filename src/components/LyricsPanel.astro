@@ -1,0 +1,103 @@
+<div 
+  id="lyrics-card"
+  class="hidden border border-white/5 bg-[#111111]/50 backdrop-blur-xl rounded-3xl p-8 sticky top-32"
+>
+  <h2 class="text-xl font-bold mb-6 tracking-wide text-white">Lyrics</h2>
+
+  <div
+    id="lyrics-container"
+    class="max-h-[350px] overflow-y-auto pr-2 custom-scrollbar"
+  >
+    <p
+      id="lyrics-content"
+      class="text-[14px] text-gray-400 leading-relaxed whitespace-pre-line italic"
+    >
+      Select a track to read the lyrics...
+    </p>
+  </div>
+</div>
+
+<style>
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+</style>
+
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const lyricsCard = document.getElementById('lyrics-card');
+    const lyricsContent = document.getElementById('lyrics-content');
+    const lyricsContainer = document.getElementById('lyrics-container');
+
+    let hasOpenedLyrics = false;
+    let isLyricsVisible = false;
+
+    const updateLyricsUI = (lyrics) => {
+      if (!lyricsContent) return;
+
+      if (lyrics && lyrics.trim() !== '') {
+        lyricsContent.classList.remove('italic');
+        lyricsContent.innerText = lyrics;
+      } else {
+        lyricsContent.classList.add('italic');
+        lyricsContent.innerText = 'Lyrics not available for this track.';
+      }
+
+      lyricsContainer?.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    };
+
+    const showLyrics = () => {
+      if (!lyricsCard) return;
+      lyricsCard.classList.remove('hidden');
+      isLyricsVisible = true;
+    };
+
+    const hideLyrics = () => {
+      if (!lyricsCard) return;
+      lyricsCard.classList.add('hidden');
+      isLyricsVisible = false;
+    };
+
+    const toggleLyrics = () => {
+      if (isLyricsVisible) {
+        hideLyrics();
+      } else {
+        showLyrics();
+      }
+    };
+
+    window.addEventListener('ybr-track-changed', (e) => {
+      if (e.detail?.lyrics !== undefined) {
+        updateLyricsUI(e.detail.lyrics);
+
+        if (hasOpenedLyrics && isLyricsVisible) {
+          showLyrics();
+        }
+      }
+    });
+
+    window.addEventListener('ybr-lyric-sync', (e) => {
+      if (e.detail?.lyrics !== undefined) {
+        hasOpenedLyrics = true;
+        updateLyricsUI(e.detail.lyrics);
+        toggleLyrics();
+      }
+    });
+  });
+</script>

@@ -1,0 +1,269 @@
+---
+// BottomPlayer.astro
+---
+
+<div id="global-bottom-player" transition:persist="ybr-player" class="fixed bottom-0 left-0 w-full bg-[#121212] border-t border-[#2a2a2a] text-white px-6 py-4 flex items-center justify-between z-50 transform translate-y-full transition-transform duration-300">
+  
+  <audio id="global-audio-engine" preload="auto" class="hidden"></audio>
+
+  <div class="flex items-center gap-5 w-[250px]">
+    <button id="bp-shuffle" class="text-gray-400 hover:text-white transition-colors">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+    </button>
+    <button id="bp-prev" class="text-white hover:scale-110 transition-transform">
+      <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+    </button>
+    <button id="bp-playpause" class="w-10 h-10 flex items-center justify-center bg-white text-black rounded-full hover:scale-105 transition-transform">
+      <svg id="bp-icon-play" class="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      <svg id="bp-icon-pause" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+    </button>
+    <button id="bp-next" class="text-white hover:scale-110 transition-transform">
+      <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+    </button>
+    <button id="bp-loop" class="text-gray-400 hover:text-white transition-colors">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+    </button>
+  </div>
+
+  <div class="flex-1 max-w-2xl flex items-center gap-4 px-8">
+    <span id="bp-current-time" class="text-xs font-medium text-gray-400 w-10 text-right">0:00</span>
+    <input type="range" id="bp-progress" class="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-white" value="0" min="0" max="100" step="0.1">
+    <span id="bp-total-time" class="text-xs font-medium text-gray-400 w-10">0:00</span>
+  </div>
+
+  <div class="flex items-center gap-6 w-[350px] justify-end">
+    <div class="flex items-center gap-2">
+      <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+      <input type="range" id="bp-volume" class="w-20 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-white" min="0" max="1" step="0.05" value="1">
+    </div>
+
+    <div class="flex items-center gap-3">
+      <div class="flex flex-col text-right">
+        <span id="bp-title" class="text-sm font-bold text-white uppercase tracking-wide truncate w-24">Title</span>
+        <span id="bp-author" class="text-[11px] text-gray-400 truncate w-24">Author</span>
+      </div>
+      <img id="bp-cover" src="" class="w-10 h-10 rounded-md object-cover border border-[#2a2a2a]" />
+    </div>
+
+    <button id="bp-lyrics-btn" class="text-gray-400 hover:text-white transition-colors ml-2" title="Lyrics">
+      <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M14 17H4v2h10v-2zm6-8H4v2h16V9zM4 15h16v-2H4v2zM4 5v2h16V5H4z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+  declare global {
+    interface Window {
+      ybrPlaylist: any[];
+      currentTrackIndex: number;
+    }
+  }
+
+  window.ybrPlaylist = window.ybrPlaylist || [];
+  window.currentTrackIndex = window.currentTrackIndex ?? -1;
+
+  let isLooping = false;
+  let isShuffling = false;
+
+  const audioEngine = document.getElementById('global-audio-engine') as HTMLAudioElement;
+  const playerUI = document.getElementById('global-bottom-player') as HTMLDivElement;
+
+  const playPauseBtn = document.getElementById('bp-playpause') as HTMLButtonElement;
+  const playIcon = document.getElementById('bp-icon-play') as SVGSVGElement;
+  const pauseIcon = document.getElementById('bp-icon-pause') as SVGSVGElement;
+  const nextBtn = document.getElementById('bp-next') as HTMLButtonElement;
+  const prevBtn = document.getElementById('bp-prev') as HTMLButtonElement;
+  const loopBtn = document.getElementById('bp-loop') as HTMLButtonElement;
+  const shuffleBtn = document.getElementById('bp-shuffle') as HTMLButtonElement;
+  const lyricsBtn = document.getElementById('bp-lyrics-btn') as HTMLButtonElement;
+
+  const progressSlider = document.getElementById('bp-progress') as HTMLInputElement;
+  const volumeSlider = document.getElementById('bp-volume') as HTMLInputElement;
+
+  const currentTimeEl = document.getElementById('bp-current-time') as HTMLSpanElement;
+  const totalTimeEl = document.getElementById('bp-total-time') as HTMLSpanElement;
+
+  const titleEl = document.getElementById('bp-title') as HTMLSpanElement;
+  const authorEl = document.getElementById('bp-author') as HTMLSpanElement;
+  const coverEl = document.getElementById('bp-cover') as HTMLImageElement;
+
+  const formatTime = (time: number) => {
+    if (isNaN(time)) return "0:00";
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const updatePlayPauseUI = (isPlaying: boolean) => {
+    if (isPlaying) {
+      playIcon.classList.add('hidden');
+      pauseIcon.classList.remove('hidden');
+    } else {
+      playIcon.classList.remove('hidden');
+      pauseIcon.classList.add('hidden');
+    }
+  };
+
+  audioEngine?.addEventListener('timeupdate', () => {
+    const currentTime = audioEngine.currentTime;
+    const duration = audioEngine.duration || 1;
+
+    currentTimeEl.textContent = formatTime(currentTime);
+    totalTimeEl.textContent = formatTime(duration);
+
+    if (duration > 1) {
+      progressSlider.value = ((currentTime / duration) * 100).toString();
+    }
+  });
+
+  audioEngine?.addEventListener('ended', () => {
+    if (isLooping) {
+      audioEngine.currentTime = 0;
+      audioEngine.play();
+    } else {
+      handleNext();
+    }
+  });
+
+  audioEngine?.addEventListener('play', () => updatePlayPauseUI(true));
+  audioEngine?.addEventListener('pause', () => updatePlayPauseUI(false));
+
+  const playTrack = (index: number, lyricsData?: string) => {
+    window.currentTrackIndex = index;
+    const track = window.ybrPlaylist[index];
+    if (!track) return;
+
+    if (lyricsData !== undefined) {
+      track.lyrics = lyricsData ?? '';
+    }
+
+    titleEl.textContent = track.title;
+    authorEl.textContent = track.author;
+    coverEl.src = track.cover;
+
+    playerUI.classList.remove('translate-y-full');
+
+    const audioUrl = track.audioUrl || track.file || track.url;
+
+    if (audioEngine.src !== audioUrl) {
+      audioEngine.src = audioUrl;
+      audioEngine.load();
+    }
+
+    audioEngine.volume = parseFloat(volumeSlider.value || "1");
+    audioEngine.play().catch(() => {});
+
+    if (track.wavesurfer) {
+      try {
+        track.wavesurfer.setVolume(0);
+        track.wavesurfer.play();
+      } catch {}
+    }
+
+    // HANYA update data lyrics (tanpa buka panel)
+    window.dispatchEvent(new CustomEvent('ybr-track-changed', {
+      detail: { lyrics: track.lyrics ?? '' }
+    }));
+
+    window.ybrPlaylist.forEach((t, i) => {
+      if (i !== index && t.wavesurfer) {
+        try { t.wavesurfer.pause(); } catch {}
+      }
+    });
+  };
+
+  const handlePlayPause = () => {
+    if (window.currentTrackIndex === -1) return;
+
+    if (audioEngine.paused) {
+      audioEngine.play();
+    } else {
+      audioEngine.pause();
+    }
+  };
+
+  const handleNext = () => {
+    if (!window.ybrPlaylist.length) return;
+
+    let nextIndex = window.currentTrackIndex + 1;
+
+    if (isShuffling) {
+      nextIndex = Math.floor(Math.random() * window.ybrPlaylist.length);
+    } else if (nextIndex >= window.ybrPlaylist.length) {
+      nextIndex = 0;
+    }
+
+    playTrack(nextIndex);
+  };
+
+  const handlePrev = () => {
+    if (!window.ybrPlaylist.length) return;
+
+    if (audioEngine.currentTime > 3) {
+      audioEngine.currentTime = 0;
+    } else {
+      let prevIndex = window.currentTrackIndex - 1;
+      if (prevIndex < 0) prevIndex = window.ybrPlaylist.length - 1;
+      playTrack(prevIndex);
+    }
+  };
+
+  lyricsBtn?.addEventListener('click', () => {
+    const track = window.ybrPlaylist[window.currentTrackIndex];
+    if (!track) return;
+
+    // BARU buka panel lyrics
+    window.dispatchEvent(new CustomEvent('ybr-lyric-sync', {
+      detail: { lyrics: track.lyrics ?? '' }
+    }));
+
+    const lyricsBox = document.getElementById('lyrics-container');
+    if (lyricsBox) {
+      lyricsBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
+
+  playPauseBtn?.addEventListener('click', handlePlayPause);
+  nextBtn?.addEventListener('click', handleNext);
+  prevBtn?.addEventListener('click', handlePrev);
+
+  loopBtn?.addEventListener('click', () => {
+    isLooping = !isLooping;
+    loopBtn.classList.toggle('text-white', isLooping);
+    loopBtn.classList.toggle('text-gray-400', !isLooping);
+  });
+
+  shuffleBtn?.addEventListener('click', () => {
+    isShuffling = !isShuffling;
+    shuffleBtn.classList.toggle('text-white', isShuffling);
+    shuffleBtn.classList.toggle('text-gray-400', !isShuffling);
+  });
+
+  progressSlider?.addEventListener('input', (e: Event) => {
+    if (window.currentTrackIndex === -1) return;
+
+    const target = e.target as HTMLInputElement;
+    const seekPercentage = parseFloat(target.value) / 100;
+
+    audioEngine.currentTime = seekPercentage * (audioEngine.duration || 0);
+  });
+
+  volumeSlider?.addEventListener('input', (e: Event) => {
+    const target = e.target as HTMLInputElement;
+    audioEngine.volume = parseFloat(target.value);
+  });
+
+  window.addEventListener('ybr-play-track', (e: Event) => {
+    const customEvent = e as CustomEvent;
+
+    if (typeof customEvent.detail?.index === 'number') {
+      playTrack(customEvent.detail.index, customEvent.detail.lyrics);
+    }
+  });
+
+  document.addEventListener('astro:page-load', () => {
+    if (audioEngine && !audioEngine.paused && audioEngine.src) {
+      playerUI.classList.remove('translate-y-full');
+    }
+  });
+</script>

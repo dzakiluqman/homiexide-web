@@ -1,15 +1,8 @@
 ---
+export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import TrackPlayer from '../../components/TrackPlayer.astro';
 import { supabase } from '../../lib/supabase';
-
-// Static Paths
-export async function getStaticPaths() {
-    const { data: talents } = await supabase.from('talents').select('id');
-    return talents?.map(talent => ({
-        params: { id: talent.id.toString() },
-    })) || [];
-}
 
 const { id } = Astro.params;
 
@@ -38,7 +31,7 @@ const { data: talentTracks } = await supabase
     `)
     .eq('talent_id', id);
 
-const tracks = talentTracks?.map(t => t.tracks).filter(Boolean) || [];
+const tracks = talentTracks?.map(t => t.tracks).filter(Boolean).reverse() || [];
 
 // Fetch All Talents
 const { data: allTalents } = await supabase

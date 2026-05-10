@@ -3,8 +3,92 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="About Us - Homiexide">
-    
-    <main class="relative z-10 max-w-[1200px] mx-auto px-8 pt-28 pb-32">
-        <h1 class="text-4xl font-bold text-white text-center mb-8">About Us</h1>
+    <main class="relative z-10 max-w-[1200px] mx-auto px-8 pt-20 pb-32">
+        
+        <div class="relative bg-[#0d0d0d] border border-white/5 rounded-[2rem] overflow-hidden mb-20 min-h-[420px] flex items-center shadow-2xl">
+            
+            <div class="absolute inset-0 z-0">
+                <img 
+                    src="/about-bg.jpg" 
+                    alt="Homiexide GTA RP" 
+                    class="w-full h-full object-cover object-right opacity-60" 
+                />
+                <div class="absolute inset-0 bg-gradient-to-r from-[#0d0d0d] via-[#0d0d0d]/90 to-transparent"></div>
+            </div>
+
+            <div class="relative z-10 w-full lg:w-[65%] p-10 lg:p-14">
+                <img 
+                    src="/homiexide-logo.png" 
+                    alt="Homiexide Logo" 
+                    class="h-16 md:h-20 mb-8 object-contain" 
+                />
+
+                <div class="text-[14px] text-gray-300 leading-relaxed font-medium space-y-6">
+                    <p>
+                        <strong class="text-white font-bold">Homiexide</strong> is a dedicated gaming community born from the world of GTA San Andreas Multiplayer. We specialize in serious roleplay, creating and developing immersive In-Character (IC) factions such as street gangs and families, staying true to the core RP experience.
+                    </p>
+                    <p>
+                        Beyond the roleplay scene, our community serves as a hub for members, providing services like sharing top-tier GTA SA Multiplayer mods. But we don't just stop at one game, we regularly squad up to have a blast in various other online multiplayer games too. Join us to discover more details!
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <h2 class="text-2xl font-bold text-white mb-8 tracking-wide">We builded</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                <div class="border border-white/10 bg-transparent rounded-[1.5rem] p-8 flex flex-col justify-between h-full">
+                    <div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="w-3.5 h-3.5 rounded-full bg-[#5b21b6]"></span> <h3 class="text-[15px] font-bold text-white tracking-wide">Boulevard Westfield</h3>
+                        </div>
+                        <p class="text-[13px] text-gray-400 leading-relaxed">
+                            The epicenter of the GTA SA Multiplayer scene. We provide a space to share Roleplay experiences. If you're looking for a family to grow up together with in the virtual worlds, this is your home.
+                        </p>
+                    </div>
+                    <div class="flex justify-end mt-12">
+                        <button class="bg-[#3b0764] hover:bg-[#5b21b6] text-white text-[13px] font-medium px-8 py-2.5 rounded-lg transition-colors">
+                            Details
+                        </button>
+                    </div>
+                </div>
+
+                <div class="border border-white/10 bg-transparent rounded-[1.5rem] p-8 flex flex-col justify-between h-full">
+                    <div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="w-3.5 h-3.5 rounded-full bg-[#854d0e]"></span> <h3 class="text-[15px] font-bold text-white tracking-wide">Money Stackin High</h3>
+                        </div>
+                        <p class="text-[13px] text-gray-400 leading-relaxed">
+                            The epicenter of the GTA SA Multiplayer scene. We provide a space to share Roleplay experiences. If you're looking for a family to grow up together with in the virtual worlds, this is your home.
+                        </p>
+                    </div>
+                    <div class="flex justify-end mt-12">
+                        <button class="bg-[#713f12] hover:bg-[#854d0e] text-white text-[13px] font-medium px-8 py-2.5 rounded-lg transition-colors">
+                            Details
+                        </button>
+                    </div>
+                </div>
+
+                <div class="border border-white/10 bg-transparent rounded-[1.5rem] p-8 flex flex-col justify-between h-full">
+                    <div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="w-3.5 h-3.5 rounded-full bg-[#1d4ed8]"></span> <h3 class="text-[15px] font-bold text-white tracking-wide">Florencia 13</h3>
+                        </div>
+                        <p class="text-[13px] text-gray-400 leading-relaxed">
+                            The epicenter of the GTA SA Multiplayer scene. We provide a space to share Roleplay experiences. If you're looking for a family to grow up together with in the virtual worlds, this is your home.
+                        </p>
+                    </div>
+                    <div class="flex justify-end mt-12">
+                        <button class="bg-[#1e3a8a] hover:bg-[#1d4ed8] text-white text-[13px] font-medium px-8 py-2.5 rounded-lg transition-colors">
+                            Details
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
     </main>
 </Layout>

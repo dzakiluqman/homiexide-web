@@ -59,7 +59,6 @@ import Layout from '../../layouts/Layout.astro';
 
         document.getElementById('display-name')!.innerText = session.username;
 
-        // 1. FUNGSI FETCH TRACKS (Tetap Sama)
         const fetchTracks = async () => {
             const { data, error } = await supabase
                 .from('track_authors')
@@ -100,7 +99,6 @@ import Layout from '../../layouts/Layout.astro';
 
         fetchTracks();
 
-        // 2. FUNGSI UPLOAD FILE KE STORAGE & INSERT KE DATABASE
         const uploadForm = document.getElementById('upload-form');
         const uploadBtn = document.getElementById('upload-btn') as HTMLButtonElement;
 
@@ -130,12 +128,13 @@ import Layout from '../../layouts/Layout.astro';
                 const audioPath = `audio/${session.username}_${Date.now()}.${audioExt}`;
                 
                 const { error: audioUploadError } = await supabase.storage
-                    .from('tracks_media')
+                    .from('media')
                     .upload(audioPath, audioFile);
 
                 if (audioUploadError) throw new Error("Gagal mengupload audio: " + audioUploadError.message);
 
-                const audioUrl = supabase.storage.from('tracks_media').getPublicUrl(audioPath).data.publicUrl;
+                const audioUrl = supabase.storage.from('media').getPublicUrl(audioPath).data.publicUrl;
+
 
                 let coverUrl = null;
                 if (coverFile) {
@@ -143,11 +142,11 @@ import Layout from '../../layouts/Layout.astro';
                     const coverPath = `covers/${session.username}_${Date.now()}.${coverExt}`;
                     
                     const { error: coverUploadError } = await supabase.storage
-                        .from('tracks_media')
+                        .from('media') 
                         .upload(coverPath, coverFile);
 
                     if (!coverUploadError) {
-                        coverUrl = supabase.storage.from('tracks_media').getPublicUrl(coverPath).data.publicUrl;
+                        coverUrl = supabase.storage.from('media').getPublicUrl(coverPath).data.publicUrl;
                     }
                 }
 
@@ -155,13 +154,13 @@ import Layout from '../../layouts/Layout.astro';
                     .from('tracks')
                     .insert([{ 
                         title: titleInput, 
-                        file: audioUrl,
+                        file: audioUrl, 
                         cover: coverUrl 
                     }])
                     .select()
                     .single();
 
-                if (trackError || !newTrack) throw new Error("Gagal menyimpan data lagu ke database.");
+                if (trackError || !newTrack) throw new Error("Gagal menyimpan data lagu ke database: " + trackError?.message);
 
                 const { error: authorError } = await supabase
                     .from('track_authors')

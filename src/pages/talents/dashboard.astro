@@ -1,0 +1,188 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Talent Dashboard">
+    <main class="relative z-10 w-full min-h-screen px-8 py-20 max-w-[1200px] mx-auto">
+        <div class="mb-12">
+            <h1 class="text-4xl font-black text-white mb-2">Welcome, <span id="display-name" class="text-purple-500">...</span></h1>
+            <p class="text-gray-400">Manage your tracks and releases.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1 bg-[#111111]/60 border border-white/10 rounded-[2rem] p-8 h-fit">
+                <h2 class="text-xl font-bold text-white mb-6">Upload New Track</h2>
+                <form id="upload-form" class="flex flex-col gap-5">
+                    
+                    <div>
+                        <label class="text-[12px] font-semibold text-gray-400 uppercase tracking-wider ml-1 mb-1 block">Track Title</label>
+                        <input type="text" id="track-title" placeholder="E.g., Summer Vibes" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-500 focus:outline-none transition-colors" required />
+                    </div>
+                    
+                    <div>
+                        <label class="text-[12px] font-semibold text-gray-400 uppercase tracking-wider ml-1 mb-1 block">Audio File (.mp3, .wav)</label>
+                        <input type="file" id="track-audio" accept=".mp3, .wav" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-500/20 file:text-purple-400 hover:file:bg-purple-500/30 transition-all cursor-pointer" required />
+                    </div>
+                    
+                    <div>
+                        <label class="text-[12px] font-semibold text-gray-400 uppercase tracking-wider ml-1 mb-1 block">Cover Art (.jpg, .png)</label>
+                        <input type="file" id="track-cover" accept=".jpg, .jpeg, .png" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-500/20 file:text-purple-400 hover:file:bg-purple-500/30 transition-all cursor-pointer" />
+                        <p class="text-[11px] text-gray-500 ml-1 mt-1">*Opsional, tapi disarankan.</p>
+                    </div>
+
+                    <button type="submit" id="upload-btn" class="mt-2 bg-purple-600 hover:bg-purple-500 text-white font-bold py-3.5 rounded-xl transition-all flex justify-center items-center gap-2">
+                        Upload & Publish
+                    </button>
+                </form>
+            </div>
+
+            <div class="lg:col-span-2 bg-[#111111]/60 border border-white/10 rounded-[2rem] p-8">
+                <h2 class="text-xl font-bold text-white mb-6">My Tracks</h2>
+                <div id="tracks-container" class="flex flex-col gap-4 text-gray-400">
+                    Loading tracks...
+                </div>
+            </div>
+        </div>
+    </main>
+</Layout>
+
+<script>
+    import { supabase } from '../../lib/supabase';
+
+    document.addEventListener('astro:page-load', async () => {
+        const session = JSON.parse(localStorage.getItem('user_session') || '{}');
+        
+        if (!session.id || session.role !== 'talents') {
+            window.location.href = '/talents/login';
+            return;
+        }
+
+        document.getElementById('display-name')!.innerText = session.username;
+
+        // 1. FUNGSI FETCH TRACKS (Tetap Sama)
+        const fetchTracks = async () => {
+            const { data, error } = await supabase
+                .from('track_authors')
+                .select(`tracks ( id, title, cover, file )`)
+                .eq('talent_id', session.id);
+
+            const container = document.getElementById('tracks-container');
+            
+            if (error) {
+                container!.innerHTML = "Gagal memuat tracks.";
+                return;
+            }
+
+            if (data && data.length > 0) {
+                container!.innerHTML = data.map(item => {
+                    const track = Array.isArray(item.tracks) ? item.tracks[0] : item.tracks;
+                    if (!track) return '';
+                    
+                    const coverImg = track.cover ? `<img src="${track.cover}" class="w-12 h-12 rounded-lg object-cover bg-gray-800" />` : `<div class="w-12 h-12 rounded-lg bg-purple-900/50 flex items-center justify-center text-sm text-purple-300">🎵</div>`;
+
+                    return `
+                    <div class="flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl hover:border-purple-500/30 transition-all">
+                        <div class="flex items-center gap-4">
+                            ${coverImg}
+                            <h3 class="text-white font-bold text-lg">${track.title}</h3>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <audio controls class="h-8 w-48 [&::-webkit-media-controls-panel]:bg-white/10 [&::-webkit-media-controls-current-time-display]:text-white [&::-webkit-media-controls-time-remaining-display]:text-white">
+                                <source src="${track.file}" type="audio/mpeg">
+                            </audio>
+                        </div>
+                    </div>
+                `}).join('');
+            } else {
+                container!.innerHTML = "No tracks uploaded yet.";
+            }
+        };
+
+        fetchTracks();
+
+        // 2. FUNGSI UPLOAD FILE KE STORAGE & INSERT KE DATABASE
+        const uploadForm = document.getElementById('upload-form');
+        const uploadBtn = document.getElementById('upload-btn') as HTMLButtonElement;
+
+        uploadForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const titleInput = (document.getElementById('track-title') as HTMLInputElement).value;
+            const audioInput = document.getElementById('track-audio') as HTMLInputElement;
+            const coverInput = document.getElementById('track-cover') as HTMLInputElement;
+
+            const audioFile = audioInput.files?.[0];
+            const coverFile = coverInput.files?.[0];
+
+            if (!audioFile) {
+                alert("Harap pilih file audio!");
+                return;
+            }
+
+            uploadBtn.innerHTML = `
+                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                Processing Upload...
+            `;
+            uploadBtn.disabled = true;
+
+            try {
+                const audioExt = audioFile.name.split('.').pop();
+                const audioPath = `audio/${session.username}_${Date.now()}.${audioExt}`;
+                
+                const { error: audioUploadError } = await supabase.storage
+                    .from('tracks_media')
+                    .upload(audioPath, audioFile);
+
+                if (audioUploadError) throw new Error("Gagal mengupload audio: " + audioUploadError.message);
+
+                const audioUrl = supabase.storage.from('tracks_media').getPublicUrl(audioPath).data.publicUrl;
+
+                let coverUrl = null;
+                if (coverFile) {
+                    const coverExt = coverFile.name.split('.').pop();
+                    const coverPath = `covers/${session.username}_${Date.now()}.${coverExt}`;
+                    
+                    const { error: coverUploadError } = await supabase.storage
+                        .from('tracks_media')
+                        .upload(coverPath, coverFile);
+
+                    if (!coverUploadError) {
+                        coverUrl = supabase.storage.from('tracks_media').getPublicUrl(coverPath).data.publicUrl;
+                    }
+                }
+
+                const { data: newTrack, error: trackError } = await supabase
+                    .from('tracks')
+                    .insert([{ 
+                        title: titleInput, 
+                        file: audioUrl,
+                        cover: coverUrl 
+                    }])
+                    .select()
+                    .single();
+
+                if (trackError || !newTrack) throw new Error("Gagal menyimpan data lagu ke database.");
+
+                const { error: authorError } = await supabase
+                    .from('track_authors')
+                    .insert([{ 
+                        track_id: newTrack.id, 
+                        talent_id: session.id 
+                    }]);
+
+                if (authorError) throw new Error("Gagal menghubungkan author.");
+
+                alert("Berhasil! Lagu kamu sudah online.");
+                (uploadForm as HTMLFormElement).reset();
+                fetchTracks();
+
+            } catch (error: any) {
+                console.error(error);
+                alert(error.message);
+            } finally {
+                uploadBtn.innerHTML = "Upload & Publish";
+                uploadBtn.disabled = false;
+            }
+        });
+    });
+</script>

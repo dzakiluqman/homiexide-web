@@ -42,7 +42,14 @@
             </a>
         </nav>
 
-        <div class="w-[120px] hidden md:block"></div>
+        <div class="hidden md:block" id="nav-auth-section">
+            <a href="/talents/login" id="login-btn" class="flex items-center justify-center px-8 py-3 text-[15px] font-bold text-white bg-white/5 hover:bg-white/15 border border-white/10 hover:border-white/30 rounded-[2rem] transition-all duration-300 backdrop-blur-md">
+                Login
+            </a>
+            <a href="/profile" id="profile-btn" class="hidden items-center justify-center px-8 py-3 text-[15px] font-bold text-[#a78bfa] bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-[2rem] transition-all duration-300 backdrop-blur-md">
+                Profile
+            </a>
+        </div>
     </div>
 </header>
 
@@ -75,4 +82,22 @@
 
     document.addEventListener('astro:page-load', initNavbarDropdown);
     initNavbarDropdown();
+
+    const checkAuth = () => {
+        const session = localStorage.getItem('user_session');
+        const loginBtn = document.getElementById('login-btn');
+        const profileBtn = document.getElementById('profile-btn');
+
+        if (session) {
+            loginBtn?.classList.add('hidden');
+            profileBtn?.classList.remove('hidden');
+            profileBtn?.classList.add('flex');
+        } else {
+            loginBtn?.classList.remove('hidden');
+            profileBtn?.classList.add('hidden');
+        }
+    };
+
+    document.addEventListener('astro:page-load', checkAuth);
+    checkAuth();
 </script>

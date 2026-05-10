@@ -1,36 +1,10 @@
 ---
-import FeatureCard from '../components/FeatureCard.astro';
-import Navbar from '../components/Navbar.astro';
-import BottomPlayer from '../components/BottomPlayer.astro';
-import { ClientRouter } from 'astro:transitions';
-import '../styles/global.css';
+import Layout from '../layouts/Layout.astro';
 ---
 
-<!doctype html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width" />
-        <title>Homiexide</title>
-        
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
-        <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
-        
-        <ClientRouter />
-    </head>
-    <body class="relative min-h-screen bg-[#09090b] text-white selection:bg-purple-900/50 pb-24">
-        
-        <div class="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-white/5 rounded-full blur-[150px] pointer-events-none"></div>
-
-        <Navbar />
-        
-        <BottomPlayer transition:persist="global-player" />
-    </body>
-</html>
-
-<style is:global>
-    body {
-        font-family: 'Montserrat', sans-serif;
-    }
-</style>
+<Layout title="GTA SA Modpacks - Homiexide">
+    
+    <main class="relative z-10 max-w-[1200px] mx-auto px-8 pt-28 pb-32">
+        <h1 class="text-4xl font-bold text-white text-center mb-8">GTA SA Modpacks</h1>
+    </main>
+</Layout>

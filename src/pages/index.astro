@@ -1,31 +1,13 @@
 ---
-import FeatureCard from '../components/FeatureCard.astro';
+import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
-import BottomPlayer from '../components/BottomPlayer.astro';
-import { ClientRouter } from 'astro:transitions';
-import '../styles/global.css';
+import FeatureCard from '../components/FeatureCard.astro';
 ---
 
-<!doctype html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width" />
-        <title>Homiexide</title>
-        
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
-        <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
-        
-        <ClientRouter />
-    </head>
-    <body class="relative min-h-screen bg-[#09090b] text-white selection:bg-purple-900/50 pb-24"> <!-- Tambah pb-24 agar konten tidak tertutup player -->
-        
-        <div class="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-white/5 rounded-full blur-[150px] pointer-events-none"></div>
-        
-        <Navbar />
+<Layout title="Homiexide - Home">
 
-        <section class="max-w-[1000px] mx-auto px-6 pt-28 pb-20 text-center relative z-10">
+    <main class="relative z-10">
+        <section class="max-w-[1000px] mx-auto px-6 pt-28 pb-20 text-center">
             <h1 class="text-[28px] md:text-[38px] font-bold tracking-tight mb-3 leading-tight text-white">
                 More than just community. Homiexide is<br class="hidden md:block" /> where we growing up together.
             </h1>
@@ -34,7 +16,7 @@ import '../styles/global.css';
             </p>
         </section>
 
-        <section class="max-w-[1200px] mx-auto px-6 pb-32 relative z-10">
+        <section class="max-w-[1200px] mx-auto px-6 pb-32">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                 <FeatureCard 
                     iconName="Community" 
@@ -62,13 +44,5 @@ import '../styles/global.css';
                 />
             </div>
         </section>
-
-        <BottomPlayer transition:persist="global-player" />
-    </body>
-</html>
-
-<style is:global>
-    body {
-        font-family: 'Montserrat', sans-serif;
-    }
-</style>
+    </main>
+</Layout>

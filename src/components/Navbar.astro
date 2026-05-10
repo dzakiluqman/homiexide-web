@@ -1,5 +1,6 @@
-<header class="relative z-50 px-8 pt-8">
-    <div class="max-w-[1400px] mx-auto flex items-center justify-between">
+<header class="relative z-50 px-6 md:px-8 pt-6 md:pt-8">
+    <div class="max-w-[1400px] mx-auto flex items-center justify-between relative">
+        
         <a href="/" class="text-3xl font-black tracking-tighter text-white flex items-center gap-1">
             HOMIEXIDE
         </a>
@@ -15,31 +16,14 @@
                     </svg>
                 </button>
                 
-                <ul 
-                    id="dropdown-menu" 
-                    class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-4 p-2 shadow-2xl bg-[#121214] border border-[#2a2a2a] rounded-2xl w-56 backdrop-blur-3xl z-[9999]"
-                >
-                    <li>
-                        <a href="/ybr" class="block px-4 py-2.5 text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white rounded-xl transition-all">
-                            Young Boys Records
-                        </a>
-                    </li>
-                    <li>
-                        <a href="/skins" class="block px-4 py-2.5 text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white rounded-xl transition-all">
-                            Skins Catalogue
-                        </a>
-                    </li>
-                    <li>
-                        <a href="/modpacks" class="block px-4 py-2.5 text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white rounded-xl transition-all">
-                            GTA SA Modpacks
-                        </a>
-                    </li>
+                <ul id="dropdown-menu" class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-4 p-2 shadow-2xl bg-[#121214] border border-[#2a2a2a] rounded-2xl w-56 backdrop-blur-3xl z-[9999]">
+                    <li><a href="/ybr" class="block px-4 py-2.5 text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white rounded-xl transition-all">Young Boys Records</a></li>
+                    <li><a href="/skins" class="block px-4 py-2.5 text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white rounded-xl transition-all">Skins Catalogue</a></li>
+                    <li><a href="/modpacks" class="block px-4 py-2.5 text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white rounded-xl transition-all">GTA SA Modpacks</a></li>
                 </ul>
             </div>
 
-            <a href="/about" class="px-4 py-1 text-[15px] font-bold text-white hover:text-gray-300 transition-colors">
-                About
-            </a>
+            <a href="/about" class="px-4 py-1 text-[15px] font-bold text-white hover:text-gray-300 transition-colors">About</a>
         </nav>
 
         <div class="hidden md:block" id="nav-auth-section">
@@ -50,54 +34,115 @@
                 Profile
             </a>
         </div>
+
+        <button id="mobile-menu-toggle" class="md:hidden text-white p-2 focus:outline-none z-[9999]">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path id="icon-bars" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                <path id="icon-x" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+
+        <div id="mobile-menu" class="hidden absolute top-full left-0 right-0 mt-6 p-4 shadow-2xl bg-[#121214] border border-[#2a2a2a] rounded-2xl backdrop-blur-3xl z-[9999] md:hidden flex-col gap-2">
+            <a href="/" class="block px-4 py-3 text-[15px] font-bold text-white hover:bg-white/5 rounded-xl transition-all">Home</a>
+            
+            <div class="px-4 pt-3 pb-1">
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Menu</span>
+            </div>
+            <a href="/ybr" class="block px-4 py-2.5 text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-all ml-2">↳ Young Boys Records</a>
+            <a href="/skins" class="block px-4 py-2.5 text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-all ml-2">↳ Skins Catalogue</a>
+            <a href="/modpacks" class="block px-4 py-2.5 text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white rounded-xl transition-all ml-2">↳ GTA SA Modpacks</a>
+            
+            <a href="/about" class="block px-4 py-3 text-[15px] font-bold text-white hover:bg-white/5 rounded-xl transition-all mt-2">About</a>
+            
+            <div class="h-px bg-white/10 my-3 w-full"></div>
+            
+            <a href="/talents/login" id="mobile-login-btn" class="block text-center px-4 py-3 text-[15px] font-bold text-white bg-white/5 border border-white/10 rounded-xl">Login</a>
+            <a href="/profile" id="mobile-profile-btn" class="hidden text-center px-4 py-3 text-[15px] font-bold text-[#a78bfa] bg-purple-500/10 border border-purple-500/30 rounded-xl">Profile</a>
+        </div>
+
     </div>
 </header>
 
 <script>
-    const initNavbarDropdown = () => {
+    const initNavbar = () => {
+        // --- Desktop Dropdown Logic ---
         const menuBtn = document.getElementById('menu-btn');
         const dropdownMenu = document.getElementById('dropdown-menu');
 
-        if (!menuBtn || !dropdownMenu) return;
+        if (menuBtn && dropdownMenu && menuBtn.getAttribute('data-dropdown-init') !== 'true') {
+            menuBtn.setAttribute('data-dropdown-init', 'true');
+            menuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdownMenu.classList.toggle('hidden');
+            });
+            document.addEventListener('click', (e) => {
+                if (!menuBtn.contains(e.target as Node) && !dropdownMenu.contains(e.target as Node)) {
+                    dropdownMenu.classList.add('hidden');
+                }
+            });
+        }
 
-        // Hindari double listener saat navigasi Astro
-        if (menuBtn.getAttribute('data-dropdown-init') === 'true') return;
+        // --- Mobile Menu Logic ---
+        const mobileToggle = document.getElementById('mobile-menu-toggle');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const iconBars = document.getElementById('icon-bars');
+        const iconX = document.getElementById('icon-x');
 
-        menuBtn.setAttribute('data-dropdown-init', 'true');
-
-        menuBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            dropdownMenu.classList.toggle('hidden');
-        });
-
-        document.addEventListener('click', (e) => {
-            if (
-                !menuBtn.contains(e.target as Node) &&
-                !dropdownMenu.contains(e.target as Node)
-            ) {
-                dropdownMenu.classList.add('hidden');
-            }
-        });
-    };
-
-    document.addEventListener('astro:page-load', initNavbarDropdown);
-    initNavbarDropdown();
-
-    const checkAuth = () => {
-        const session = localStorage.getItem('user_session');
-        const loginBtn = document.getElementById('login-btn');
-        const profileBtn = document.getElementById('profile-btn');
-
-        if (session) {
-            loginBtn?.classList.add('hidden');
-            profileBtn?.classList.remove('hidden');
-            profileBtn?.classList.add('flex');
-        } else {
-            loginBtn?.classList.remove('hidden');
-            profileBtn?.classList.add('hidden');
+        if (mobileToggle && mobileMenu && mobileToggle.getAttribute('data-mobile-init') !== 'true') {
+            mobileToggle.setAttribute('data-mobile-init', 'true');
+            mobileToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                mobileMenu.classList.toggle('hidden');
+                mobileMenu.classList.toggle('flex');
+                iconBars?.classList.toggle('hidden');
+                iconX?.classList.toggle('hidden');
+            });
         }
     };
 
-    document.addEventListener('astro:page-load', checkAuth);
+    const checkAuth = () => {
+        const session = localStorage.getItem('user_session');
+        
+        // Desktop Elements
+        const desktopLoginBtn = document.getElementById('login-btn');
+        const desktopProfileBtn = document.getElementById('profile-btn');
+        
+        // Mobile Elements
+        const mobileLoginBtn = document.getElementById('mobile-login-btn');
+        const mobileProfileBtn = document.getElementById('mobile-profile-btn');
+
+        if (session) {
+            // Update Desktop
+            desktopLoginBtn?.classList.add('hidden');
+            desktopProfileBtn?.classList.remove('hidden');
+            desktopProfileBtn?.classList.add('flex');
+            
+            // Update Mobile
+            mobileLoginBtn?.classList.add('hidden');
+            mobileLoginBtn?.classList.remove('block');
+            mobileProfileBtn?.classList.remove('hidden');
+            mobileProfileBtn?.classList.add('block');
+        } else {
+            // Update Desktop
+            desktopLoginBtn?.classList.remove('hidden');
+            desktopProfileBtn?.classList.add('hidden');
+            desktopProfileBtn?.classList.remove('flex');
+            
+            // Update Mobile
+            mobileLoginBtn?.classList.remove('hidden');
+            mobileLoginBtn?.classList.add('block');
+            mobileProfileBtn?.classList.add('hidden');
+            mobileProfileBtn?.classList.remove('block');
+        }
+    };
+
+    // Eksekusi setiap kali ganti halaman
+    document.addEventListener('astro:page-load', () => {
+        initNavbar();
+        checkAuth();
+    });
+    
+    // Eksekusi untuk pertama kali load
+    initNavbar();
     checkAuth();
 </script>

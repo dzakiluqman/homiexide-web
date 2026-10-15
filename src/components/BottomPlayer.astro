@@ -4,7 +4,7 @@
 
 <div id="global-bottom-player" transition:persist="ybr-player" class="fixed bottom-0 left-0 w-full bg-[#121212] border-t border-[#2a2a2a] text-white px-6 py-4 flex items-center justify-between z-50 transform translate-y-full transition-transform duration-300">
   
-  <audio id="global-audio-engine" preload="auto" class="hidden"></audio>
+  <audio id="global-audio-engine" preload="none" class="hidden"></audio>
 
   <div class="flex items-center gap-5 w-[250px]">
     <button id="bp-shuffle" class="text-gray-400 hover:text-white transition-colors">
@@ -56,6 +56,7 @@
     interface Window {
       ybrPlaylist: any[];
       currentTrackIndex: number;
+      __bpInitialized?: boolean;
     }
   }
 
@@ -64,6 +65,9 @@
 
   let isLooping = false;
   let isShuffling = false;
+  let isScrubbing = false;
+  let lastSecond = -1;
+  let syncRafId: number | null = null;
 
   const audioEngine = document.getElementById('global-audio-engine') as HTMLAudioElement;
   const playerUI = document.getElementById('global-bottom-player') as HTMLDivElement;
@@ -88,7 +92,7 @@
   const coverEl = document.getElementById('bp-cover') as HTMLImageElement;
 
   const formatTime = (time: number) => {
-    if (isNaN(time)) return "0:00";
+    if (isNaN(time) || !isFinite(time)) return "0:00";
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -96,39 +100,59 @@
 
   const updatePlayPauseUI = (isPlaying: boolean) => {
     if (isPlaying) {
-      playIcon.classList.add('hidden');
-      pauseIcon.classList.remove('hidden');
+      playIcon?.classList.add('hidden');
+      pauseIcon?.classList.remove('hidden');
     } else {
-      playIcon.classList.remove('hidden');
-      pauseIcon.classList.add('hidden');
+      playIcon?.classList.remove('hidden');
+      pauseIcon?.classList.add('hidden');
+    }
+    // Broadcast UI sync to track players without heavy overhead
+    window.dispatchEvent(new CustomEvent('ybr-global-ui-sync'));
+  };
+
+  // High-performance RAF synchronization loop running ONLY while playing
+  const startSyncLoop = () => {
+    if (syncRafId !== null) return;
+
+    const tick = () => {
+      if (audioEngine && !audioEngine.paused) {
+        const currentTime = audioEngine.currentTime;
+        const duration = audioEngine.duration || 1;
+        const ratio = duration > 0 ? currentTime / duration : 0;
+
+        if (!isScrubbing) {
+          progressSlider.value = (ratio * 100).toFixed(2);
+
+          const currentSec = Math.floor(currentTime);
+          if (currentSec !== lastSecond) {
+            lastSecond = currentSec;
+            currentTimeEl.textContent = formatTime(currentTime);
+          }
+        }
+
+        // Update active track waveform directly
+        const activeTrack = window.ybrPlaylist[window.currentTrackIndex];
+        if (activeTrack?.wavesurfer?.seekTo) {
+          activeTrack.wavesurfer.seekTo(ratio);
+        }
+
+        syncRafId = requestAnimationFrame(tick);
+      } else {
+        syncRafId = null;
+      }
+    };
+
+    syncRafId = requestAnimationFrame(tick);
+  };
+
+  const stopSyncLoop = () => {
+    if (syncRafId !== null) {
+      cancelAnimationFrame(syncRafId);
+      syncRafId = null;
     }
   };
 
-  audioEngine?.addEventListener('timeupdate', () => {
-    const currentTime = audioEngine.currentTime;
-    const duration = audioEngine.duration || 1;
-
-    currentTimeEl.textContent = formatTime(currentTime);
-    totalTimeEl.textContent = formatTime(duration);
-
-    if (duration > 1) {
-      progressSlider.value = ((currentTime / duration) * 100).toString();
-    }
-  });
-
-  audioEngine?.addEventListener('ended', () => {
-    if (isLooping) {
-      audioEngine.currentTime = 0;
-      audioEngine.play();
-    } else {
-      handleNext();
-    }
-  });
-
-  audioEngine?.addEventListener('play', () => updatePlayPauseUI(true));
-  audioEngine?.addEventListener('pause', () => updatePlayPauseUI(false));
-
-  const playTrack = (index: number, lyricsData?: string) => {
+  const playTrack = (index: number, lyricsData?: string, seekRatio?: number) => {
     window.currentTrackIndex = index;
     const track = window.ybrPlaylist[index];
     if (!track) return;
@@ -151,32 +175,41 @@
     }
 
     audioEngine.volume = parseFloat(volumeSlider.value || "1");
-    audioEngine.play().catch(() => {});
 
-    if (track.wavesurfer) {
-      try {
-        track.wavesurfer.setVolume(0);
-        track.wavesurfer.play();
-      } catch {}
+    if (typeof seekRatio === 'number' && seekRatio > 0) {
+      const applySeek = () => {
+        if (audioEngine.duration) {
+          audioEngine.currentTime = seekRatio * audioEngine.duration;
+        }
+      };
+      if (audioEngine.readyState >= 1 && audioEngine.duration) {
+        applySeek();
+      } else {
+        audioEngine.addEventListener('loadedmetadata', applySeek, { once: true });
+      }
     }
 
-    // HANYA update data lyrics (tanpa buka panel)
+    audioEngine.play().catch(() => {});
+
+    // Notify tracks to update playing states
+    window.ybrPlaylist.forEach((t, i) => {
+      if (i === index) {
+        t.wavesurfer?.play?.();
+      } else {
+        t.wavesurfer?.pause?.();
+      }
+    });
+
     window.dispatchEvent(new CustomEvent('ybr-track-changed', {
       detail: { lyrics: track.lyrics ?? '' }
     }));
-
-    window.ybrPlaylist.forEach((t, i) => {
-      if (i !== index && t.wavesurfer) {
-        try { t.wavesurfer.pause(); } catch {}
-      }
-    });
   };
 
   const handlePlayPause = () => {
     if (window.currentTrackIndex === -1) return;
 
     if (audioEngine.paused) {
-      audioEngine.play();
+      audioEngine.play().catch(() => {});
     } else {
       audioEngine.pause();
     }
@@ -208,62 +241,125 @@
     }
   };
 
-  lyricsBtn?.addEventListener('click', () => {
-    const track = window.ybrPlaylist[window.currentTrackIndex];
-    if (!track) return;
+  // Attach persistent listeners only once
+  if (!window.__bpInitialized && audioEngine) {
+    window.__bpInitialized = true;
 
-    // BARU buka panel lyrics
-    window.dispatchEvent(new CustomEvent('ybr-lyric-sync', {
-      detail: { lyrics: track.lyrics ?? '' }
-    }));
+    audioEngine.addEventListener('play', () => {
+      updatePlayPauseUI(true);
+      startSyncLoop();
+    });
 
-    const lyricsBox = document.getElementById('lyrics-container');
-    if (lyricsBox) {
-      lyricsBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  });
+    audioEngine.addEventListener('pause', () => {
+      updatePlayPauseUI(false);
+      stopSyncLoop();
+    });
 
-  playPauseBtn?.addEventListener('click', handlePlayPause);
-  nextBtn?.addEventListener('click', handleNext);
-  prevBtn?.addEventListener('click', handlePrev);
+    audioEngine.addEventListener('loadedmetadata', () => {
+      totalTimeEl.textContent = formatTime(audioEngine.duration);
+    });
 
-  loopBtn?.addEventListener('click', () => {
-    isLooping = !isLooping;
-    loopBtn.classList.toggle('text-white', isLooping);
-    loopBtn.classList.toggle('text-gray-400', !isLooping);
-  });
+    audioEngine.addEventListener('durationchange', () => {
+      totalTimeEl.textContent = formatTime(audioEngine.duration);
+    });
 
-  shuffleBtn?.addEventListener('click', () => {
-    isShuffling = !isShuffling;
-    shuffleBtn.classList.toggle('text-white', isShuffling);
-    shuffleBtn.classList.toggle('text-gray-400', !isShuffling);
-  });
+    audioEngine.addEventListener('ended', () => {
+      stopSyncLoop();
+      if (isLooping) {
+        audioEngine.currentTime = 0;
+        audioEngine.play().catch(() => {});
+      } else {
+        handleNext();
+      }
+    });
 
-  progressSlider?.addEventListener('input', (e: Event) => {
-    if (window.currentTrackIndex === -1) return;
+    playPauseBtn?.addEventListener('click', handlePlayPause);
+    nextBtn?.addEventListener('click', handleNext);
+    prevBtn?.addEventListener('click', handlePrev);
 
-    const target = e.target as HTMLInputElement;
-    const seekPercentage = parseFloat(target.value) / 100;
+    loopBtn?.addEventListener('click', () => {
+      isLooping = !isLooping;
+      loopBtn.classList.toggle('text-white', isLooping);
+      loopBtn.classList.toggle('text-gray-400', !isLooping);
+    });
 
-    audioEngine.currentTime = seekPercentage * (audioEngine.duration || 0);
-  });
+    shuffleBtn?.addEventListener('click', () => {
+      isShuffling = !isShuffling;
+      shuffleBtn.classList.toggle('text-white', isShuffling);
+      shuffleBtn.classList.toggle('text-gray-400', !isShuffling);
+    });
 
-  volumeSlider?.addEventListener('input', (e: Event) => {
-    const target = e.target as HTMLInputElement;
-    audioEngine.volume = parseFloat(target.value);
-  });
+    lyricsBtn?.addEventListener('click', () => {
+      const track = window.ybrPlaylist[window.currentTrackIndex];
+      if (!track) return;
 
-  window.addEventListener('ybr-play-track', (e: Event) => {
-    const customEvent = e as CustomEvent;
+      window.dispatchEvent(new CustomEvent('ybr-lyric-sync', {
+        detail: { lyrics: track.lyrics ?? '' }
+      }));
 
-    if (typeof customEvent.detail?.index === 'number') {
-      playTrack(customEvent.detail.index, customEvent.detail.lyrics);
-    }
-  });
+      const lyricsBox = document.getElementById('lyrics-container');
+      if (lyricsBox) {
+        lyricsBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+
+    // Scrubbing without thrashing audio decoders
+    progressSlider?.addEventListener('pointerdown', () => {
+      isScrubbing = true;
+    });
+
+    progressSlider?.addEventListener('input', (e: Event) => {
+      if (window.currentTrackIndex === -1) return;
+      isScrubbing = true;
+      const target = e.target as HTMLInputElement;
+      const ratio = parseFloat(target.value) / 100;
+      const dur = audioEngine.duration || 0;
+      currentTimeEl.textContent = formatTime(ratio * dur);
+
+      const activeTrack = window.ybrPlaylist[window.currentTrackIndex];
+      activeTrack?.wavesurfer?.seekTo?.(ratio);
+    });
+
+    const commitSeek = (e: Event) => {
+      if (!isScrubbing && e.type !== 'change') return;
+      isScrubbing = false;
+      if (window.currentTrackIndex === -1) return;
+      const target = progressSlider;
+      const ratio = parseFloat(target.value) / 100;
+      if (audioEngine.duration) {
+        audioEngine.currentTime = ratio * audioEngine.duration;
+      }
+    };
+
+    progressSlider?.addEventListener('change', commitSeek);
+    window.addEventListener('pointerup', () => {
+      if (isScrubbing) {
+        commitSeek(new Event('change'));
+      }
+    });
+
+    volumeSlider?.addEventListener('input', (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      audioEngine.volume = parseFloat(target.value);
+    });
+
+    window.addEventListener('ybr-play-track', (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (typeof customEvent.detail?.index === 'number') {
+        playTrack(customEvent.detail.index, customEvent.detail.lyrics, customEvent.detail.seekRatio);
+      }
+    });
+  }
 
   document.addEventListener('astro:page-load', () => {
     if (audioEngine && !audioEngine.paused && audioEngine.src) {
       playerUI.classList.remove('translate-y-full');
+      updatePlayPauseUI(true);
+      startSyncLoop();
     }
+  });
+
+  document.addEventListener('astro:before-swap', () => {
+    stopSyncLoop();
   });
 </script>

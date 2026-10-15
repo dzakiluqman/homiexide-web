@@ -42,8 +42,6 @@ const { title, author, cover, audioUrl, lyrics } = Astro.props;
 </div>
 
 <script>
-  import WaveSurfer from 'wavesurfer.js';
-
   declare global {
     interface Window {
       ybrPlaylist: any[];
@@ -51,153 +49,333 @@ const { title, author, cover, audioUrl, lyrics } = Astro.props;
     }
   }
 
+  // Fast string hash for deterministic PRNG seed
+  function hashString(str: string): number {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return h >>> 0;
+  }
+
+  // Mulberry32 deterministic PRNG
+  function mulberry32(seed: number) {
+    return function () {
+      let t = (seed += 0x6d2b79f5);
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Generate realistic SoundCloud-style audio peaks without downloading audio files
+  function generatePeaks(key: string, count: number = 180): number[] {
+    const rng = mulberry32(hashString(key));
+    const peaks = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      const p = i / count;
+      // Macro musical envelope: intro ramp, verse dynamics, chorus swells, outro fade
+      const envelope = Math.sin(p * Math.PI);
+      const beat1 = Math.abs(Math.sin(p * 20 * Math.PI));
+      const beat2 = Math.abs(Math.cos(p * 42 * Math.PI));
+      const noise = rng();
+      const val = (envelope * 0.38) + (beat1 * 0.24) + (beat2 * 0.16) + (noise * 0.22);
+      peaks[i] = Math.max(0.12, Math.min(0.96, val));
+    }
+    return Array.from(peaks);
+  }
+
+  let cleanupFn: (() => void) | null = null;
+
   document.addEventListener('astro:page-load', () => {
+    if (cleanupFn) {
+      cleanupFn();
+      cleanupFn = null;
+    }
+
     if (!window.ybrPlaylist) {
-      window.ybrPlaylist = []; 
+      window.ybrPlaylist = [];
     }
 
-    const players = document.querySelectorAll('.track-player');
-    const audioEngine = document.getElementById('global-audio-engine') as HTMLAudioElement;
+    const playerElements = Array.from(document.querySelectorAll('.track-player')) as HTMLElement[];
+    if (playerElements.length === 0) return;
 
-    // 1. Broadcast waktu dari mesin global
-    if (audioEngine && !audioEngine.getAttribute('data-sync-attached')) {
-      audioEngine.addEventListener('timeupdate', () => {
-        window.dispatchEvent(new Event('ybr-engine-timeupdate'));
-      });
-      audioEngine.setAttribute('data-sync-attached', 'true');
-    }
+    const audioEngine = document.getElementById('global-audio-engine') as HTMLAudioElement | null;
+    const activeCleanups: Array<() => void> = [];
 
-    players.forEach((player) => {
-      const audioUrl = player.getAttribute('data-audio');
-      const title = player.getAttribute('data-title');
-      const author = player.getAttribute('data-author');
-      const cover = player.getAttribute('data-cover');
-      const lyrics = player.getAttribute('data-lyrics');
-      
+    // Shared IntersectionObserver for lazy initialization (client:visible pattern)
+    const initPlayer = (player: HTMLElement) => {
+      const audioUrl = player.getAttribute('data-audio') || '';
+      const title = player.getAttribute('data-title') || '';
+      const author = player.getAttribute('data-author') || '';
+      const cover = player.getAttribute('data-cover') || '';
+      const lyrics = player.getAttribute('data-lyrics') || '';
+
       const waveContainer = player.querySelector('.waveform-container') as HTMLElement;
       const playBtn = player.querySelector('.play-btn') as HTMLButtonElement;
       const playIcon = player.querySelector('.play-icon') as SVGSVGElement;
       const pauseIcon = player.querySelector('.pause-icon') as SVGSVGElement;
 
-      if (waveContainer && audioUrl) {
-        
-        setTimeout(() => {
-          
-          waveContainer.innerHTML = ''; 
+      if (!waveContainer || !audioUrl) return;
 
-          const wavesurfer = WaveSurfer.create({
-            container: waveContainer,
-            waveColor: '#4b5563', 
-            progressColor: '#ffffff',
-            barWidth: 2, 
-            barGap: 2, 
-            barRadius: 2, 
-            height: 40, 
-            cursorWidth: 0, 
-          });
-
-          wavesurfer.setVolume(0);
-
-          wavesurfer.load(audioUrl);
-
-          let trackIndex = window.ybrPlaylist.findIndex(t => t.audioUrl === audioUrl);
-
-          if (trackIndex === -1) {
-            trackIndex = window.ybrPlaylist.length;
-            window.ybrPlaylist.push({
-              index: trackIndex,
-              title,
-              author,
-              cover,
-              audioUrl,
-              lyrics: lyrics ?? '',
-              wavesurfer,
-              hasBottomPlayerListeners: false
-            });
-          } else {
-            // Update referensi wavesurfer dengan instance yang baru digambar
-            window.ybrPlaylist[trackIndex].wavesurfer = wavesurfer;
-            window.ybrPlaylist[trackIndex].lyrics = lyrics ?? window.ybrPlaylist[trackIndex].lyrics ?? '';
-          }
-
-          const updateIconUI = () => {
-            const isEnginePlaying = audioEngine && !audioEngine.paused;
-            if (window.currentTrackIndex === trackIndex && (wavesurfer.isPlaying() || isEnginePlaying)) {
-              playIcon?.classList.add('hidden');
-              pauseIcon?.classList.remove('hidden');
-            } else {
-              playIcon?.classList.remove('hidden');
-              pauseIcon?.classList.add('hidden');
-            }
-          };
-
-          // Saat gelombang selesai dirender, cek sinkronisasi
-          wavesurfer.on('ready', () => {
-            wavesurfer.setVolume(0); 
-            if (window.currentTrackIndex === trackIndex && audioEngine) {
-              const duration = audioEngine.duration || 1;
-              wavesurfer.seekTo(audioEngine.currentTime / duration);
-              if (!audioEngine.paused) {
-                wavesurfer.play().catch(() => {});
-              }
-              updateIconUI();
-            }
-          });
-
-          // Sinkronisasi paksa setiap detak mesin audio
-          const handleTimeUpdate = () => {
-            if (window.currentTrackIndex === trackIndex && audioEngine) {
-              const audioTime = audioEngine.currentTime;
-              const waveTime = wavesurfer.getCurrentTime();
-              const duration = audioEngine.duration || 1;
-
-              if (Math.abs(audioTime - waveTime) > 0.1) {
-                try { wavesurfer.seekTo(audioTime / duration); } catch(e) {}
-              }
-
-              if (!audioEngine.paused && !wavesurfer.isPlaying()) {
-                wavesurfer.play().catch(() => {});
-              }
-              
-              updateIconUI();
-            }
-          };
-
-          window.addEventListener('ybr-engine-timeupdate', handleTimeUpdate);
-
-          // Bersihkan memory saat pindah page
-          document.addEventListener('astro:before-swap', () => {
-            window.removeEventListener('ybr-engine-timeupdate', handleTimeUpdate);
-            // Hancurkan instance wavesurfer lama sebelum hilang
-            try { wavesurfer.destroy(); } catch(e) {}
-          }, { once: true });
-
-          wavesurfer.on('play', updateIconUI);
-          wavesurfer.on('pause', updateIconUI);
-          window.addEventListener('ybr-global-ui-sync', updateIconUI);
-
-          playBtn?.addEventListener('click', () => {
-            if (window.currentTrackIndex === trackIndex && audioEngine) {
-              if (audioEngine.paused) {
-                audioEngine.play();
-                wavesurfer.play().catch(()=>{});
-              } else {
-                audioEngine.pause();
-                wavesurfer.pause();
-              }
-            } else {
-              window.dispatchEvent(new CustomEvent('ybr-play-track', { 
-              detail: { 
-                index: trackIndex, 
-                lyrics: lyrics ?? '' 
-              } 
-            }));
-            }
-          });
-
-        }, 150); // Akhir dari setTimeout
-        
+      // Register or update playlist index
+      let trackIndex = window.ybrPlaylist.findIndex(t => t.audioUrl === audioUrl);
+      if (trackIndex === -1) {
+        trackIndex = window.ybrPlaylist.length;
+        window.ybrPlaylist.push({
+          index: trackIndex,
+          title,
+          author,
+          cover,
+          audioUrl,
+          lyrics,
+          hasBottomPlayerListeners: false
+        });
+      } else {
+        window.ybrPlaylist[trackIndex].lyrics = lyrics || window.ybrPlaylist[trackIndex].lyrics || '';
       }
-    });
+
+      // Generate realistic deterministic waveform peaks in <0.1ms (0 byte network transfer)
+      const peaks = generatePeaks(audioUrl || title, 180);
+
+      // Create lightweight native canvas
+      waveContainer.innerHTML = '';
+      const canvas = document.createElement('canvas');
+      canvas.style.display = 'block';
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      waveContainer.appendChild(canvas);
+
+      const ctx = canvas.getContext('2d');
+      let currentProgress = 0;
+      let isPlayingState = false;
+
+      const updateIconUI = () => {
+        const isEnginePlaying = audioEngine && !audioEngine.paused;
+        if (window.currentTrackIndex === trackIndex && isEnginePlaying) {
+          playIcon?.classList.add('hidden');
+          pauseIcon?.classList.remove('hidden');
+        } else {
+          playIcon?.classList.remove('hidden');
+          pauseIcon?.classList.add('hidden');
+        }
+      };
+
+      const render = (progressRatio: number) => {
+        if (!ctx) return;
+        currentProgress = Math.max(0, Math.min(1, progressRatio));
+
+        const width = waveContainer.clientWidth || 300;
+        const height = 40;
+        const dpr = window.devicePixelRatio || 1;
+
+        if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
+          canvas.width = width * dpr;
+          canvas.height = height * dpr;
+        }
+
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, width, height);
+
+        const barWidth = 2;
+        const barGap = 2;
+        const step = barWidth + barGap; // 4px
+        const totalBars = Math.floor(width / step);
+
+        if (totalBars > 0) {
+          const splitX = currentProgress * width;
+          const waveColor = '#4b5563';
+          const progressColor = '#ffffff';
+
+          for (let i = 0; i < totalBars; i++) {
+            const x = i * step;
+            const peakIndex = Math.min(peaks.length - 1, Math.floor((i / totalBars) * peaks.length));
+            const peak = peaks[peakIndex];
+            const barHeight = Math.max(4, Math.round(peak * 34));
+            const y = Math.round((height - barHeight) / 2);
+
+            ctx.fillStyle = (x + barWidth / 2 <= splitX) ? progressColor : waveColor;
+            ctx.beginPath();
+            if (ctx.roundRect) {
+              ctx.roundRect(x, y, barWidth, barHeight, 2);
+            } else {
+              ctx.rect(x, y, barWidth, barHeight);
+            }
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+      };
+
+      // Initial render
+      render(0);
+      updateIconUI();
+
+      // Synchronize with active playback if this track is currently playing
+      if (window.currentTrackIndex === trackIndex && audioEngine) {
+        if (audioEngine.duration) {
+          render(audioEngine.currentTime / audioEngine.duration);
+        }
+        updateIconUI();
+      }
+
+      // Backwards-compatible wavesurfer adapter for global playlist
+      const adapter = {
+        play: () => {
+          isPlayingState = true;
+          updateIconUI();
+        },
+        pause: () => {
+          isPlayingState = false;
+          updateIconUI();
+        },
+        seekTo: (ratio: number) => {
+          render(ratio);
+        },
+        setVolume: () => {},
+        destroy: () => {
+          waveContainer.innerHTML = '';
+        },
+        isPlaying: () => isPlayingState,
+        getCurrentTime: () => {
+          if (audioEngine && window.currentTrackIndex === trackIndex) {
+            return audioEngine.currentTime;
+          }
+          return 0;
+        }
+      };
+
+      window.ybrPlaylist[trackIndex].wavesurfer = adapter;
+
+      // Handle waveform seeking via click or drag
+      const handleSeek = (e: MouseEvent | PointerEvent) => {
+        const rect = waveContainer.getBoundingClientRect();
+        if (rect.width <= 0) return;
+        const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+
+        if (window.currentTrackIndex === trackIndex && audioEngine) {
+          if (audioEngine.duration) {
+            audioEngine.currentTime = ratio * audioEngine.duration;
+          }
+          render(ratio);
+          if (audioEngine.paused) {
+            audioEngine.play().catch(() => {});
+          }
+        } else {
+          render(ratio);
+          window.dispatchEvent(new CustomEvent('ybr-play-track', {
+            detail: {
+              index: trackIndex,
+              lyrics,
+              seekRatio: ratio
+            }
+          }));
+        }
+      };
+
+      let isDragging = false;
+      const onPointerDown = (e: PointerEvent) => {
+        isDragging = true;
+        handleSeek(e);
+        try { waveContainer.setPointerCapture(e.pointerId); } catch {}
+      };
+
+      const onPointerMove = (e: PointerEvent) => {
+        if (isDragging) {
+          handleSeek(e);
+        }
+      };
+
+      const onPointerUp = (e: PointerEvent) => {
+        if (isDragging) {
+          isDragging = false;
+          try { waveContainer.releasePointerCapture(e.pointerId); } catch {}
+        }
+      };
+
+      waveContainer.addEventListener('pointerdown', onPointerDown);
+      waveContainer.addEventListener('pointermove', onPointerMove);
+      waveContainer.addEventListener('pointerup', onPointerUp);
+      waveContainer.addEventListener('pointercancel', onPointerUp);
+
+      // Handle play/pause button
+      const onPlayBtnClick = () => {
+        if (window.currentTrackIndex === trackIndex && audioEngine) {
+          if (audioEngine.paused) {
+            audioEngine.play().catch(() => {});
+          } else {
+            audioEngine.pause();
+          }
+        } else {
+          window.dispatchEvent(new CustomEvent('ybr-play-track', {
+            detail: {
+              index: trackIndex,
+              lyrics
+            }
+          }));
+        }
+      };
+      playBtn?.addEventListener('click', onPlayBtnClick);
+
+      // Handle responsive resize with RAF debouncing
+      let resizeRaf: number | null = null;
+      const resizeObserver = new ResizeObserver(() => {
+        if (resizeRaf !== null) cancelAnimationFrame(resizeRaf);
+        resizeRaf = requestAnimationFrame(() => {
+          render(currentProgress);
+        });
+      });
+      resizeObserver.observe(waveContainer);
+
+      // Listen for global UI sync
+      window.addEventListener('ybr-global-ui-sync', updateIconUI);
+
+      activeCleanups.push(() => {
+        waveContainer.removeEventListener('pointerdown', onPointerDown);
+        waveContainer.removeEventListener('pointermove', onPointerMove);
+        waveContainer.removeEventListener('pointerup', onPointerUp);
+        waveContainer.removeEventListener('pointercancel', onPointerUp);
+        playBtn?.removeEventListener('click', onPlayBtnClick);
+        window.removeEventListener('ybr-global-ui-sync', updateIconUI);
+        resizeObserver.disconnect();
+        if (resizeRaf !== null) cancelAnimationFrame(resizeRaf);
+      });
+    };
+
+    // Lazy load player components as they enter or near the viewport
+    let intersectionObserver: IntersectionObserver | null = null;
+
+    if ('IntersectionObserver' in window) {
+      intersectionObserver = new IntersectionObserver((entries, obs) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const el = entry.target as HTMLElement;
+            initPlayer(el);
+            obs.unobserve(el);
+          }
+        });
+      }, { rootMargin: '200px 0px' });
+
+      playerElements.forEach(el => intersectionObserver!.observe(el));
+    } else {
+      // Fallback for environments without IntersectionObserver
+      playerElements.forEach(el => initPlayer(el));
+    }
+
+    cleanupFn = () => {
+      if (intersectionObserver) {
+        intersectionObserver.disconnect();
+      }
+      activeCleanups.forEach(fn => fn());
+    };
+
+    document.addEventListener('astro:before-swap', () => {
+      if (cleanupFn) {
+        cleanupFn();
+        cleanupFn = null;
+      }
+    }, { once: true });
   });
 </script>

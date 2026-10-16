@@ -4,9 +4,10 @@ interface Props {
 	title: string;
 	description: string;
 	buttonText: string;
+	href?: string;
 }
 
-const { iconName, title, description, buttonText } = Astro.props;
+const { iconName, title, description, buttonText, href = '#' } = Astro.props;
 
 // Menentukan warna icon
 const iconColor = 
@@ -37,7 +38,10 @@ const hoverBorder =
 	'hover:border-[#4f5bbe]/50';
 ---
 
-<div class={`group relative flex flex-col h-full p-7 rounded-2xl border border-[#2a2a2a] bg-[#111111] transition-all duration-500 overflow-hidden ${hoverBorder} hover:-translate-y-1`}>
+<a 
+	href={href} 
+	class={`group relative flex flex-col h-full p-7 rounded-2xl border border-[#2a2a2a] bg-[#111111] transition-all duration-500 overflow-hidden ${hoverBorder} hover:-translate-y-1 block cursor-pointer no-underline text-inherit`}
+>
 	
 	<div class={`absolute -top-10 -right-10 w-36 h-36 rounded-full blur-[45px] opacity-0 group-hover:opacity-30 transition-opacity duration-500 pointer-events-none ${glareColor}`}></div>
 
@@ -57,9 +61,9 @@ const hoverBorder =
 		</p>
 
 		<div class="flex justify-end mt-8">
-			<button class={`px-5 py-2 rounded-xl text-xs font-bold text-white transition-all ${buttonClass}`}>
+			<span class={`inline-flex items-center justify-center px-5 py-2 rounded-xl text-xs font-bold text-white transition-all duration-300 group-hover:brightness-110 ${buttonClass}`}>
 				{buttonText}
-			</button>
+			</span>
 		</div>
 	</div>
-</div>
+</a>

@@ -1,16 +1,44 @@
+---
+// LyricsPanel.astro
+---
+
 <div 
   id="lyrics-card"
-  class="hidden border border-white/5 bg-[#111111]/50 backdrop-blur-xl rounded-3xl p-8 sticky top-32"
+  class="absolute inset-0 flex flex-col p-8 bg-[#111111]/95 backdrop-blur-2xl transition-all duration-300 ease-in-out opacity-0 pointer-events-none translate-y-3 z-20"
+  aria-hidden="true"
 >
-  <h2 class="text-xl font-bold mb-6 tracking-wide text-white">Lyrics</h2>
+  <!-- Header with Title and Close Button -->
+  <div class="flex items-center justify-between pb-4 mb-4 border-b border-white/5 shrink-0">
+    <div class="flex items-center gap-2.5">
+      <div class="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-purple-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+        </svg>
+      </div>
+      <h2 class="text-xl font-bold tracking-wide text-white">Lyrics</h2>
+    </div>
 
+    <button 
+      id="lyrics-close-btn" 
+      type="button"
+      class="text-gray-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-all cursor-pointer group"
+      title="Close Lyrics"
+      aria-label="Close Lyrics"
+    >
+      <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- Scrollable Lyrics Container -->
   <div
     id="lyrics-container"
-    class="max-h-[350px] overflow-y-auto pr-2 custom-scrollbar"
+    class="flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-0"
   >
     <p
       id="lyrics-content"
-      class="text-[14px] text-gray-400 leading-relaxed whitespace-pre-line italic"
+      class="text-[14px] text-gray-300 leading-relaxed whitespace-pre-line italic font-normal"
     >
       Select a track to read the lyrics...
     </p>
@@ -27,33 +55,50 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.15);
     border-radius: 10px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   }
 </style>
 
 <script>
-  document.addEventListener('astro:page-load', () => {
+  let isLyricsVisible = false;
+
+  const initLyricsPanel = () => {
     const lyricsCard = document.getElementById('lyrics-card');
+    const talentsCard = document.getElementById('talents-card');
     const lyricsContent = document.getElementById('lyrics-content');
     const lyricsContainer = document.getElementById('lyrics-container');
+    const closeBtn = document.getElementById('lyrics-close-btn');
 
-    let hasOpenedLyrics = false;
-    let isLyricsVisible = false;
+    if (!lyricsCard) return;
 
-    const updateLyricsUI = (lyrics) => {
+    // Reset local visibility state on fresh page render
+    isLyricsVisible = false;
+
+    const updateLyricsUI = (lyrics: string | null | undefined) => {
       if (!lyricsContent) return;
 
       if (lyrics && lyrics.trim() !== '') {
-        lyricsContent.classList.remove('italic');
+        lyricsContent.classList.remove('italic', 'text-gray-500');
+        lyricsContent.classList.add('text-gray-200');
         lyricsContent.innerText = lyrics;
-      } else {
-        lyricsContent.classList.add('italic');
+      } else if (typeof window !== 'undefined' && window.currentTrackIndex !== -1 && window.ybrPlaylist?.[window.currentTrackIndex]) {
+        lyricsContent.classList.add('italic', 'text-gray-500');
+        lyricsContent.classList.remove('text-gray-200');
         lyricsContent.innerText = 'Lyrics not available for this track.';
+      } else {
+        lyricsContent.classList.add('italic', 'text-gray-500');
+        lyricsContent.classList.remove('text-gray-200');
+        lyricsContent.innerText = 'Select a track to read the lyrics...';
       }
 
       lyricsContainer?.scrollTo({
@@ -62,42 +107,117 @@
       });
     };
 
-    const showLyrics = () => {
+    const showLyrics = (shouldScroll = true) => {
       if (!lyricsCard) return;
-      lyricsCard.classList.remove('hidden');
       isLyricsVisible = true;
+
+      // Reveal lyrics overlay with smooth transition
+      lyricsCard.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-3');
+      lyricsCard.classList.add('opacity-100', 'pointer-events-auto', 'translate-y-0');
+      lyricsCard.setAttribute('aria-hidden', 'false');
+
+      // Conceal talents card with smooth micro-animation
+      if (talentsCard) {
+        talentsCard.classList.remove('opacity-100', 'translate-y-0');
+        talentsCard.classList.add('opacity-0', 'pointer-events-none', '-translate-y-3', 'scale-[0.98]');
+        talentsCard.setAttribute('aria-hidden', 'true');
+      }
+
+      // Sync state with BottomPlayer
+      window.dispatchEvent(new CustomEvent('ybr-lyrics-toggled', {
+        detail: { isVisible: true }
+      }));
+
+      // Scroll into view on mobile or if off-screen, without jarring jumps
+      if (shouldScroll) {
+        const sidebarCard = document.getElementById('sidebar-card') || lyricsCard;
+        if (sidebarCard) {
+          const rect = sidebarCard.getBoundingClientRect();
+          const isInView = rect.top >= 80 && rect.bottom <= (window.innerHeight - 80);
+          if (!isInView) {
+            sidebarCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }
+      }
     };
 
     const hideLyrics = () => {
       if (!lyricsCard) return;
-      lyricsCard.classList.add('hidden');
       isLyricsVisible = false;
+
+      // Hide lyrics overlay
+      lyricsCard.classList.remove('opacity-100', 'pointer-events-auto', 'translate-y-0');
+      lyricsCard.classList.add('opacity-0', 'pointer-events-none', 'translate-y-3');
+      lyricsCard.setAttribute('aria-hidden', 'true');
+
+      // Restore talents card
+      if (talentsCard) {
+        talentsCard.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-3', 'scale-[0.98]');
+        talentsCard.classList.add('opacity-100', 'translate-y-0');
+        talentsCard.setAttribute('aria-hidden', 'false');
+      }
+
+      // Sync state with BottomPlayer
+      window.dispatchEvent(new CustomEvent('ybr-lyrics-toggled', {
+        detail: { isVisible: false }
+      }));
     };
 
     const toggleLyrics = () => {
       if (isLyricsVisible) {
         hideLyrics();
       } else {
-        showLyrics();
+        showLyrics(true);
       }
     };
 
-    window.addEventListener('ybr-track-changed', (e) => {
-      if (e.detail?.lyrics !== undefined) {
-        updateLyricsUI(e.detail.lyrics);
-
-        if (hasOpenedLyrics && isLyricsVisible) {
-          showLyrics();
-        }
-      }
+    // Close button inside lyrics card
+    closeBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      hideLyrics();
     });
 
-    window.addEventListener('ybr-lyric-sync', (e) => {
-      if (e.detail?.lyrics !== undefined) {
-        hasOpenedLyrics = true;
-        updateLyricsUI(e.detail.lyrics);
-        toggleLyrics();
+    // Close on Escape key
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isLyricsVisible) {
+        hideLyrics();
       }
-    });
-  });
+    };
+    window.addEventListener('keydown', onKeyDown);
+
+    // Initial sync with active track if already playing
+    if (typeof window !== 'undefined' && window.currentTrackIndex !== -1 && window.ybrPlaylist?.[window.currentTrackIndex]) {
+      const activeTrack = window.ybrPlaylist[window.currentTrackIndex];
+      updateLyricsUI(activeTrack.lyrics);
+    }
+
+    // Listen to track change events
+    const onTrackChanged = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.lyrics !== undefined) {
+        updateLyricsUI(customEvent.detail.lyrics);
+      }
+    };
+
+    // Listen to toggle events from bottom player
+    const onLyricSync = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.lyrics !== undefined) {
+        updateLyricsUI(customEvent.detail.lyrics);
+      }
+      toggleLyrics();
+    };
+
+    window.addEventListener('ybr-track-changed', onTrackChanged);
+    window.addEventListener('ybr-lyric-sync', onLyricSync);
+
+    // Cleanup listeners before Astro page swap to avoid memory leaks
+    document.addEventListener('astro:before-swap', () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('ybr-track-changed', onTrackChanged);
+      window.removeEventListener('ybr-lyric-sync', onLyricSync);
+    }, { once: true });
+  };
+
+  document.addEventListener('astro:page-load', initLyricsPanel);
 </script>

@@ -45,7 +45,7 @@
       <img id="bp-cover" src="" class="w-10 h-10 rounded-md object-cover border border-[#2a2a2a]" />
     </div>
 
-    <button id="bp-lyrics-btn" class="text-gray-400 hover:text-white transition-colors ml-2" title="Lyrics">
+    <button id="bp-lyrics-btn" class="text-gray-400 hover:text-white transition-all ml-2 p-1.5 rounded-lg hover:bg-white/5 cursor-pointer" title="Toggle Lyrics" aria-label="Toggle Lyrics">
       <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M14 17H4v2h10v-2zm6-8H4v2h16V9zM4 15h16v-2H4v2zM4 5v2h16V5H4z"/></svg>
     </button>
   </div>
@@ -291,15 +291,20 @@
 
     lyricsBtn?.addEventListener('click', () => {
       const track = window.ybrPlaylist[window.currentTrackIndex];
-      if (!track) return;
+      const lyrics = track ? (track.lyrics ?? '') : '';
 
       window.dispatchEvent(new CustomEvent('ybr-lyric-sync', {
-        detail: { lyrics: track.lyrics ?? '' }
+        detail: { lyrics }
       }));
+    });
 
-      const lyricsBox = document.getElementById('lyrics-container');
-      if (lyricsBox) {
-        lyricsBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.addEventListener('ybr-lyrics-toggled', (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const isVisible = !!customEvent.detail?.isVisible;
+      if (lyricsBtn) {
+        lyricsBtn.classList.toggle('text-white', isVisible);
+        lyricsBtn.classList.toggle('text-gray-400', !isVisible);
+        lyricsBtn.classList.toggle('bg-white/15', isVisible);
       }
     });
 
@@ -352,6 +357,12 @@
   }
 
   document.addEventListener('astro:page-load', () => {
+    const hasLyricsCard = !!document.getElementById('lyrics-card');
+    if (!hasLyricsCard && lyricsBtn) {
+      lyricsBtn.classList.remove('text-white', 'bg-white/15');
+      lyricsBtn.classList.add('text-gray-400');
+    }
+
     if (audioEngine && !audioEngine.paused && audioEngine.src) {
       playerUI.classList.remove('translate-y-full');
       updatePlayPauseUI(true);

@@ -101,14 +101,15 @@ if (trackError || talentError) {
                 <div class="sticky top-32 w-full">
                     <div 
                         id="sidebar-card" 
-                        class="relative w-full min-h-[460px] max-h-[calc(100vh-160px)] flex flex-col border border-white/5 bg-[#111111]/50 backdrop-blur-xl rounded-3xl overflow-hidden shadow-2xl transition-all duration-300"
+                        class="relative w-full h-[480px] max-h-[calc(100vh-160px)] flex flex-col border border-white/5 bg-[#111111]/50 backdrop-blur-xl rounded-3xl overflow-hidden shadow-2xl transition-all duration-300"
                     >
                         <!-- Talents Card View -->
                         <div 
                             id="talents-card" 
-                            class="flex-1 flex flex-col p-8 transition-all duration-300 ease-in-out opacity-100 translate-y-0"
+                            class="flex-1 min-h-0 flex flex-col p-8 transition-all duration-300 ease-in-out opacity-100 translate-y-0"
                         >
-                            <div class="flex items-center justify-between mb-6">
+                            <!-- Card Header (Pinned outside scrollable body) -->
+                            <div class="flex items-center justify-between mb-6 shrink-0">
                                 <h2 class="text-xl font-bold tracking-wide text-white">
                                     Talents
                                 </h2>
@@ -119,21 +120,22 @@ if (trackError || talentError) {
                                 )}
                             </div>
                             
-                            <div class="flex-1 overflow-y-auto pr-1 -mr-1 custom-scrollbar min-h-0">
-                                <ul class="flex flex-col gap-4">
+                            <!-- Scrollable Talents List Wrapper -->
+                            <div class="flex-1 overflow-y-auto overflow-x-hidden pr-2 custom-scrollbar min-h-0 scroll-smooth">
+                                <ul class="flex flex-col gap-3">
                                     {talents && talents.length > 0 ? (
                                         talents.map(talent => (
                                             <li>
                                                 <a 
                                                     href={`/talents/${talent.id}`} 
-                                                    class="flex items-center gap-4 group cursor-pointer p-2 -ml-2 rounded-xl hover:bg-white/5 transition-all"
+                                                    class="flex items-center gap-4 group cursor-pointer p-2 rounded-xl hover:bg-white/5 transition-all"
                                                 >
                                                     <img 
                                                         src={talent.profile_picture || 'https://placehold.co/100x100/333/666?text=?'} 
                                                         alt={talent.display_name} 
-                                                        class="w-10 h-10 rounded-full object-cover border border-white/10 group-hover:border-white/30 transition-all" 
+                                                        class="w-10 h-10 rounded-full object-cover border border-white/10 group-hover:border-white/30 transition-all shrink-0" 
                                                     />
-                                                    <span class="text-[15px] font-semibold text-gray-400 group-hover:text-white transition-colors">
+                                                    <span class="text-[15px] font-semibold text-gray-400 group-hover:text-white transition-colors truncate min-w-0">
                                                         {talent.display_name}
                                                     </span>
                                                 </a>
@@ -157,3 +159,27 @@ if (trackError || talentError) {
         </div>
     </main>
 </Layout>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 5px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 9999px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+    }
+</style>
